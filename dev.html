@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>匠作志略 · 代汉涂高</title>
+<meta name="description" content="《代汉涂高》匠作志略：目录架构、脚本加载次序、数据契约与白名单、图象资源路径、校验工具与扩展指南。">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div id="app" class="wiki-body">
+
+  <header class="wiki-top">
+    <span class="seal">漢</span>
+    <b id="wikiTitle">匠作志略</b>
+    <div class="spacer"></div>
+    <span class="hint" id="wikiCount"></span>
+    <a href="wiki.html">兵书志略 →</a>
+    <a href="index.html">← 返回游戏</a>
+  </header>
+
+  <div class="wiki-shell">
+    <nav class="wiki-nav" id="wikiNav" aria-label="目录"></nav>
+    <main class="wiki-main" id="wikiMain" aria-label="正文"></main>
+  </div>
+</div>
+
+<script src="src/data/dev.js"></script>
+<script src="src/ui/reader.js"></script>
+<script>Reader.mount(window.DEV);</script>
+</body>
+</html>

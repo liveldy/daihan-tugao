@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>代汉涂高 · 三国君主战棋</title>
+<meta name="description" content="以广义三国为背景的回合制战棋策略游戏：自黄巾起义至司马炎称帝，择一君主，混一宇内。">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- 主页面 -->
+  <section id="titleScreen" class="overlay on" aria-label="主页面">
+    <div class="title-wrap">
+      <div class="title-hero">
+        <div class="seal-lg">漢</div>
+        <h1>代漢塗高</h1>
+        <div class="sub">广义三国 · 君主战棋</div>
+        <p class="quote">「代汉者当涂高」——语出光武帝与公孙述书，见《后汉书·公孙述传》。<br>
+          自中平元年黄巾起事，至咸熙二年晋王受禅，八十一载，十五家之主，二十五君之志。</p>
+      </div>
+
+      <nav class="menu" id="mainMenu" aria-label="入门">
+        <button type="button" class="menu-item" id="btnCampaign">
+          <b>承天受命</b>
+          <span>十五家之业，二十五君之志。择一而兴，依史而行，混一宇内。</span>
+        </button>
+        <button type="button" class="menu-item" id="btnTutorial">
+          <b>演武教战</b>
+          <span>初入沙场者，先于此习行军、攻城、征募、邦交十事，再出而争天下。</span>
+        </button>
+        <button type="button" class="menu-item" id="btnWiki">
+          <b>兵书志略</b>
+          <span>兵制、相克、行军、城池、邦交、剧情、胜负，凡九门八十二条，皆按本作实法而书。</span>
+        </button>
+      </nav>
+
+      <div class="picker" id="picker" hidden>
+        <nav class="groups" id="groupList" aria-label="君主分组"></nav>
+        <div class="entries" id="entryList" aria-label="可择之君"></div>
+      </div>
+      <div class="title-foot">
+        <span class="hint" id="titleHint">择一君主，观其开局之势。</span>
+        <button type="button" class="btn" id="btnPickBack" hidden>返回</button>
+        <button type="button" class="btn" id="btnLorePreview">典籍</button>
+        <a class="doc-link" href="dev.html">匠作志略</a>
+        <button type="button" class="btn primary" id="btnStart" disabled>受命而起</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 主界面 -->
+  <header class="topbar" id="topbar" hidden>
+    <div class="brand">
+      <span class="seal">漢</span>
+      <b>代漢塗高</b>
+      <span class="date" id="clock"></span>
+    </div>
+    <div class="resources" id="resources"></div>
+    <div class="spacer"></div>
+    <button class="btn sm" id="btnCourt">庙堂</button>
+    <button class="btn primary" id="btnEndTurn">结束回合</button>
+  </header>
+
+  <main class="main" id="main" hidden>
+    <section class="stage" aria-label="舆图">
+      <canvas id="map" width="1200" height="800" aria-label="舆图"></canvas>
+      <div class="intel" id="intel" hidden></div>
+      <div class="tutor" id="tutor" hidden></div>
+      <div class="stage-foot">
+        <span class="hint" id="hint">点击舆图上本方部队即可调遣。</span>
+      </div>
+    </section>
+    <aside class="side" aria-label="军情">
+      <div class="tabs" role="tablist" id="tabs">
+        <button role="tab" aria-selected="true" data-tab="army">军情</button>
+        <button role="tab" aria-selected="false" data-tab="city">城池</button>
+        <button role="tab" aria-selected="false" data-tab="who">人物</button>
+        <button role="tab" aria-selected="false" data-tab="book">典籍</button>
+        <button role="tab" aria-selected="false" data-tab="log">战报</button>
+      </div>
+      <div class="tabpanel" id="tabpanel" role="tabpanel"></div>
+    </aside>
+  </main>
+
+  <!-- 剧情 / 结局 / 通用叠层 -->
+  <div class="overlay" id="overlay" role="dialog" aria-modal="true"></div>
+  <div class="toast-stack" id="toasts" aria-live="polite" aria-atomic="true"></div>
+</div>
+
+<script src="src/data/map.js"></script>
+<script src="src/data/factions.js"></script>
+<script src="src/data/generals_1.js"></script>
+<script src="src/data/generals_2.js"></script>
+<script src="src/data/generals_3.js"></script>
+<script src="src/data/generals_4.js"></script>
+<script src="src/data/lore.js"></script>
+<script src="src/data/stories_1.js"></script>
+<script src="src/data/stories_2.js"></script>
+<script src="src/data/stories_3.js"></script>
+<script src="src/data/stories_4.js"></script>
+<script src="src/data/stories_5.js"></script>
+<script src="src/data/stories_6.js"></script>
+<script src="src/data/stories_7.js"></script>
+<script src="src/core/rules.js"></script>
+<script src="src/core/engine.js"></script>
+<script src="src/core/story.js"></script>
+<script src="src/core/tutor.js"></script>
+<script src="src/core/ai.js"></script>
+<script src="src/ui/art.js"></script>
+<script src="src/ui/render.js"></script>
+<script src="src/ui/ui.js"></script>
+<script src="src/main.js"></script>
+</body>
+</html>
