@@ -20,6 +20,8 @@ for arg in "$@"; do
 done
 
 TOKEN="${GITHUB_TOKEN:-${GitHub_token:-}}"
+# 必须导出：git 拉起的凭据助手是一个子进程，只看得见环境，看不见 shell 的局部变量
+export TOKEN
 if [ -z "$TOKEN" ]; then
   echo "未找到 GITHUB_TOKEN（或 GitHub_token）。" >&2
   echo "请先执行：penguin config vault set --key GITHUB_TOKEN --value <token>" >&2

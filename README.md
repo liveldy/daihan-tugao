@@ -5,6 +5,8 @@
 
 > 「代汉者当涂高」出自《后汉书·公孙述传》所载光武帝与公孙述书，是理解袁术僭号与曹魏代汉的一条线索，也是本作标题所本。
 
+在线试玩：<https://liveldy.github.io/daihan-tugao/>　·　[兵书志略](https://liveldy.github.io/daihan-tugao/wiki.html)　·　[匠作志略](https://liveldy.github.io/daihan-tugao/dev.html)
+
 ## 运行
 
 纯静态、零外部依赖，直接双击 `index.html` 即可（全部脚本用传统 `<script>` 标签，`file://` 下可运行）。
