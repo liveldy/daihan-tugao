@@ -97,7 +97,19 @@ node tools/validate.js          # 全量数据与引擎校验（含 wiki、故�
 node tools/sim.js caocao 40     # 以曹操自动推演 40 回合
 SIM_AI_PLAYER=1 node tools/sim.js zhangjiao 260   # 以张角自中平元年推演 260 回合
 node tools/art_manifest.js      # 重生成美术资源清单
+sh tools/deploy_github.sh       # 推到 GitHub 并开启 Pages（需 GITHUB_TOKEN）
 ```
+
+## 部署
+
+纯静态站，推到 GitHub 的 `main` 分支、以根目录开启 Pages 即可上线，无须构建。
+
+```
+penguin config vault set --key GITHUB_TOKEN --value <token>   # classic token，勾 repo 权限
+sh tools/deploy_github.sh [仓库名] [--private]                # 默认 daihan-tugao、公开
+```
+
+脚本会建库（或沿用已有者）、推送 `main`、开启 Pages，并打印站点地址。token 只从环境变量读，不写入 `.git/config`。
 
 ## 史实原则
 

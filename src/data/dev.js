@@ -632,6 +632,21 @@ window.DEV = {
             "node tools/validate_generals_2.js —— 单校 src/data/generals_2.js 是否合 SCHEMA"
           ],
           src: "tools/check_lore.js；tools/validate_generals_2.js"
+        },
+        {
+          id: "tool-deploy",
+          title: "部署到 GitHub Pages",
+          body: [
+            "本作为纯静态站，无须构建：推到 GitHub 的 main 分支、以根目录开启 Pages 即可上线。tools/deploy_github.sh 把三步一并做了——建库（或沿用已有者）、推送 main、开启 Pages。"
+          ],
+          list: [
+            "先备 token：penguin config vault set --key GITHUB_TOKEN --value <token>（classic token，勾 repo 权限；建库与开 Pages 皆需之）",
+            "命令：sh tools/deploy_github.sh [仓库名] [--private]（仓库名默认 daihan-tugao，公开）",
+            "token 只从环境变量读，不写入 .git/config，也不出现在命令行之中",
+            "上线后访问 https://<账号>.github.io/<仓库名>/；此后每次 git push 皆自动重发"
+          ],
+          note: "Pages 之源取 main 分支根目录；.nojekyll 已在仓库中，免 Jekyll 插手。三页相对路径互达，故部署后 wiki.html 与 dev.html 直接可用。",
+          src: "tools/deploy_github.sh"
         }
       ]
     },
