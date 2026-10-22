@@ -234,6 +234,96 @@ function checkDoc(label, D, forbidTech) {
 checkDoc('兵书志略', sandbox.WIKI, true);
 checkDoc('匠作志略', sandbox.DEV, false);
 
+/* —— 人物志：兵书志略之附卷，由武将数据自动编次（src/ui/roster.js） —— */
+/* 浏览器中由 Roster.attach() 推入 window.WIKI.sections 之末；此处就同一份武将数据核其形状与文案。 */
+(function () {
+  const rel = 'src/ui/roster.js';
+  const fpath = path.join(ROOT, rel);
+  if (!fs.existsSync(fpath)) { errs.push('缺文件：' + rel); return; }
+  const rsrc = fs.readFileSync(fpath, 'utf8');
+  if (rsrc.indexOf('</scr' + 'ipt>') >= 0) { errs.push(rel + ' 内含字面量脚本结束标记'); }
+  if (/^\s*(import|export)\s/m.test(rsrc)) { errs.push(rel + ' 使用了 ESM 语法'); }
+  try { vm.runInContext(rsrc, ctx, { filename: rel }); } catch (e) { errs.push(rel + ' 载入失败：' + e.message); return; }
+
+  const Roster = sandbox.Roster;
+  if (!Roster || typeof Roster.registry !== 'function' || typeof Roster.section !== 'function' || typeof Roster.attach !== 'function') {
+    errs.push('Roster 未导出 registry/section/attach'); return;
+  }
+
+  const reg = Roster.registry();
+  const genIds = Object.keys(GEN);
+  if (Object.keys(reg).length !== genIds.length) { errs.push('人物志收录 ' + Object.keys(reg).length + ' 人，武将数据 ' + genIds.length + ' 人'); }
+  genIds.forEach(id => { if (reg[id] !== GEN[id]) { errs.push('人物志之 ' + id + ' 非武将数据原对象'); } });
+
+  const sec = Roster.section(reg);
+  if (!sec || sec.id !== 'roster' || !sec.name || !Array.isArray(sec.entries) || !sec.entries.length) {
+    errs.push('Roster.section 未返回合法节对象（须有 id=roster、name 与 entries）'); return;
+  }
+  if (!Array.isArray(sec.entries[0].body) || !sec.entries[0].body.length) { errs.push('人物志缺开卷总说（首条无 body）'); }
+  if (!sec.entries[sec.entries.length - 1].note) { errs.push('人物志缺卷末注（末条无 note）'); }
+
+  const wikiIds = new Set();
+  ((sandbox.WIKI && sandbox.WIKI.sections) || []).forEach(s => (s.entries || []).forEach(e => wikiIds.add(e.id)));
+  const seenIds = new Set();
+  let rows = 0, skills = 0, segs = 0, cols = null;
+  const perFac = {};
+  genIds.forEach(id => { const f = GEN[id].faction || 'neutral'; perFac[f] = (perFac[f] || 0) + 1; });
+
+  sec.entries.forEach(e => {
+    if (!e.id || !e.title || !Array.isArray(e.body) || !e.body.length) { errs.push('人物志条目缺 id/title/body：' + (e.id || e.title)); return; }
+    if (seenIds.has(e.id)) { errs.push('人物志条目 id 重复：' + e.id); }
+    if (wikiIds.has(e.id)) { errs.push('人物志条目 id 与兵书志略既有条目重复：' + e.id); }
+    seenIds.add(e.id);
+    if (e.table) {
+      if (!e.table.head || !e.table.rows) { errs.push('人物志表格缺 head/rows：' + e.id); }
+      else {
+        if (cols == null) { cols = e.table.head.length; }
+        else if (cols !== e.table.head.length) { errs.push('人物志表格列数不一：' + e.id); }
+        e.table.rows.forEach((r, i) => {
+          if (r.length !== e.table.head.length) { errs.push('人物志表格 ' + e.id + ' 第 ' + (i + 1) + ' 行列数不符'); }
+          rows++;
+          skills += (String(r[r.length - 1]).match(/（(?:常|光环|主动)）/g) || []).length;
+        });
+        segs++;
+      }
+    }
+    const texts = [].concat(e.body, e.list || [], e.note ? [e.note] : [],
+      e.table ? [].concat(e.table.head, ...e.table.rows) : []);
+    texts.forEach(t => {
+      if (typeof t === 'string' && TECH_IN_WIKI.test(t)) {
+        errs.push('人物志条目「' + e.title + '」夹带实现细节：' + t.slice(0, 40) + '…');
+      }
+    });
+  });
+
+  const totalSkills = genIds.reduce((n, id) => n + ((GEN[id].skills || []).length), 0);
+  if (rows !== genIds.length) { errs.push('人物志表载 ' + rows + ' 行，武将 ' + genIds.length + ' 人，数目不符'); }
+  if (skills !== totalSkills) { errs.push('人物志载技能 ' + skills + ' 条，武将数据 ' + totalSkills + ' 条，数目不符'); }
+  const facKeys = Object.keys(perFac).sort((a, b) => b.length - a.length);
+  const listed = new Set();
+  sec.entries.forEach(e => {
+    if (!e.table) { return; }
+    const k = facKeys.find(f => e.id === 'roster-' + f || e.id.indexOf('roster-' + f + '-') === 0);
+    if (k) { listed.add(k); } else { errs.push('人物志条目 ' + e.id + ' 不对应任何有将佐之势力'); }
+  });
+  facKeys.forEach(f => {
+    if (!listed.has(f)) { errs.push('人物志未列势力 ' + f + '（' + perFac[f] + ' 人）'); }
+  });
+
+  const W = sandbox.WIKI;
+  if (W && Array.isArray(W.sections)) {
+    const before = W.sections.length;
+    Roster.attach(); Roster.attach();
+    const after = W.sections.length;
+    if (after !== before + 1) { errs.push('Roster.attach() 非恰推一节（' + before + ' → ' + after + '）'); }
+    else if (!W.sections[after - 1] || W.sections[after - 1].id !== 'roster') { errs.push('Roster.attach() 所推者非人物志节'); }
+    while (W.sections.length > before) { W.sections.pop(); }
+  } else { errs.push('兵书志略缺 sections，无从核 Roster.attach()'); }
+
+  ok.push('人物志 ' + sec.entries.length + ' 条（总说 1、势力 ' + segs + ' 段、卷末 1）：将佐 ' + rows
+    + ' 人、势力 ' + Object.keys(perFac).length + ' 家、技能 ' + skills + ' 条，表 ' + cols + ' 列');
+})();
+
 
 /* —— 引擎跑通：二十四主各推演 —— */
 let run = 0, dead = [];

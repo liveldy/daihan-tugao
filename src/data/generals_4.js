@@ -2006,5 +2006,153 @@ window.GENERALS_PART4 = {
     quote: "将军兵向城西门，丹杨军便开门内将军矣。",
     appear: [184, 196],
     impact: 1
+  },
+
+  /* ========== 吴末 孙皓之世 ========== */
+  "sun_hao": {
+    id: "sun_hao",
+    name: "孙皓",
+    zi: "元宗",
+    aka: ["彭祖", "乌程侯", "归命侯"],
+    birth: 242, death: 284,
+    faction: "wu",
+    roles: ["lord"],
+    stats: { lead: 62, war: 50, int: 70, pol: 58, cha: 52 },
+    skills: [
+      { id: "youzhao_xushimin", name: "优诏恤民", kind: "aura", desc: "初立发优诏、恤士民、开仓廪，出宫女以配无妻者，当时翕然称为明主。", mod: { morale: 6, food: 120 }, tags: ["rally"] },
+      { id: "yanhui_chenshenzui", name: "宴会令沈醉", kind: "passive", desc: "每宴会群臣无不咸令沈醉，置黄门郎十人侍立终日为司过之吏，宴罢各奏阙失。", mod: { morale: -4, gold: 80 }, tags: ["dread"] },
+      { id: "fuming_gaiyuan", name: "符命改元", kind: "passive", desc: "得大鼎、得银、得石函，皆以为受命之符，八改年号，荧惑巫祝交致祥瑞。", mod: { xp: 0.08, morale: 4 }, tags: ["ritual"] }
+    ],
+    traits: ["迎立于乌程", "初称明主", "诛戮忠良", "衔璧归命"],
+    bio: "孙权之孙、废太子和之子，字元宗，一名彭祖，字皓宗。永安元年封乌程侯，遣就国。永安七年（264）七月景帝孙休薨，时蜀汉初亡、交趾携叛，吴人震惧而贪得长君；左典军万彧昔为乌程令，与皓相善，称其才识明断、是长沙桓王之畴，屡言之于丞相濮阳兴、左将军张布，遂迎立之，时年二十三。初立发优诏、开仓廪、出宫女，众翕然称为明主；既得志则粗暴骄盈，多忌讳、好酒色，是年十一月即诛兴、布。甘露元年徙都武昌，宝鼎元年还建业。天纪四年（280）王濬入石头，皓备亡国之礼，面缚舆榇而降，送于洛阳，赐号归命侯，太康五年（284）卒。陈寿评曰：「皓之淫刑所滥，陨毙流黜者，盖不可胜数。是以群下人人惴恐，皆日日以冀，朝不谋夕。」（《三国志·孙皓传》）",
+    quote: "见无礼于君者则剥之。",
+    appear: [255, 284],
+    impact: 5
+  },
+  "xue_ying": {
+    id: "xue_ying",
+    name: "薛莹",
+    zi: "道言",
+    aka: ["左国史", "光禄勋"],
+    birth: null, death: 282,
+    faction: "wu",
+    roles: ["minister"],
+    stats: { lead: 40, war: 34, int: 78, pol: 76, cha: 70 },
+    skills: [
+      { id: "can_zhuan_wushu", name: "参撰吴书", kind: "passive", desc: "少帝时与韦曜、周昭、梁广及华覈五人同撰《吴书》，访求往事，备有本末。", mod: { xp: 0.14, vision: 2 }, tags: ["scholar"] },
+      { id: "zao_jiangbiao", name: "造降表", kind: "passive", desc: "天纪四年皓奉书于司马伷、王浑、王濬请降，其文莹所造。", mod: { gold: 200, morale: -3 }, tags: ["ritual"] },
+      { id: "du_zao_shengxi", name: "督凿圣谿", kind: "passive", desc: "何定建议凿圣谿以通江淮，皓令莹督万人往，以多盘石难施功而罢。", mod: { food: -150, landmove: 1 }, tags: ["logistics"] }
+    ],
+    traits: ["薛综之子", "文章尤妙", "屡登显列", "吴亡入晋"],
+    bio: "字道言，沛郡竹邑人，太子少傅薛综之次子。初为秘府中书郎，孙休即位为散骑中常侍。孙皓初为左执法，迁选曹尚书，及立太子又领少傅；建衡三年（271）皓追叹其父遗文，命莹继作，莹献诗陈父子世受国恩。何定建议凿圣谿以通江淮，皓令莹督万人往，以盘石难施功而罢，出为武昌左部督；定诛后皓追圣谿事，下莹狱徙广州，赖陆抗、华覈上疏得还，为左国史，迁光禄勋。天纪四年（280）晋军至建业，皓之降书即莹所造。入洛阳为散骑常侍，答问处当皆有条理，太康三年（282）卒，著书八篇，名曰《新议》。（《三国志·薛综传》附）",
+    appear: [240, 282],
+    impact: 2
+  },
+  "wan_yu": {
+    id: "wan_yu",
+    name: "万彧",
+    birth: null, death: 272,
+    faction: "wu",
+    roles: ["minister"],
+    stats: { lead: 44, war: 38, int: 68, pol: 70, cha: 58 },
+    skills: [
+      { id: "cheng_hao_caishi", name: "称皓才识", kind: "passive", desc: "昔为乌程令，与皓相善，称其才识明断、好学奉法，屡言之于濮阳兴、张布。", mod: { gold: 150, xp: 0.10 }, tags: ["insight"] },
+      { id: "jin_zen_xingbu", name: "进谮兴布", kind: "passive", desc: "皓既践阼，兴、布窃悔迎立之事，或以谮进，是年十一月诛兴、布。", mod: { morale: -3, gold: 100 }, tags: ["dread"] },
+      { id: "shangzhen_baqiu", name: "上镇巴丘", kind: "passive", desc: "宝鼎二年上镇巴丘，明年还建业；身为右丞相而琐才凡庸，为陆凯所讥。", mod: { citydef: 0.08, food: 200 }, tags: ["fortify"] }
+    ],
+    traits: ["皓之旧交", "迎立首谋", "位至右丞相", "被谴忧死"],
+    bio: "初为乌程令，与乌程侯皓相善。永安七年（264）孙休薨，彧称皓才识明断、是长沙桓王之畴，又加之好学、奉遵法度，屡言之于丞相濮阳兴与左将军张布，遂赞成迎立之议。皓即位，彧自左典军累迁常侍，宝鼎元年（266）为右丞相，陆凯上疏讥其「琐才凡庸之质，昔从家隶，超步紫闼」。宝鼎二年上镇巴丘，三年还建业。凤皇元年（272）西陵步阐之叛既平，彧以被谴忧死，子弟皆徙庐陵。（《三国志·孙皓传》《陆凯传》）",
+    appear: [255, 272],
+    impact: 3
+  },
+  "wang_fan": {
+    id: "wang_fan",
+    name: "王蕃",
+    zi: "永元",
+    aka: ["散骑中常侍", "驸马都尉"],
+    birth: 228, death: 266,
+    faction: "wu",
+    roles: ["minister"],
+    stats: { lead: 40, war: 32, int: 80, pol: 74, cha: 72 },
+    skills: [
+      { id: "botai_duowen", name: "博览多闻", kind: "passive", desc: "博览多闻，兼通术艺；尝使于蜀，蜀人称焉，还为夏口监军。", mod: { xp: 0.14, vision: 2 }, tags: ["scholar"] },
+      { id: "bu_chengyan", name: "不能承颜顺指", kind: "passive", desc: "体气高亮，不能承颜顺指，时或迕意，积以见责。", mod: { morale: 6, def: 0.08 }, tags: ["ritual"] },
+      { id: "xingzhi_ziruo", name: "行止自若", kind: "passive", desc: "性有威严，虽沉醉顿伏，举之出外而酒不解，行止自若如常。", mod: { def: 0.06, morale: 4 }, tags: ["guard"] }
+    ],
+    traits: ["兼通术艺", "时论清之", "积忤见责", "枭于殿堂"],
+    bio: "字永元，庐江人。博览多闻，兼通术艺。始为尚书郎，去官；孙休即位，与贺邵、薛莹、虞汜俱为散骑中常侍，皆加驸马都尉，时论清之。遣使至蜀，蜀人称焉，还为夏口监军。孙皓初复入为常侍，与万彧同官，而中书丞陈声数谮毁之。甘露二年（266）丁忠使晋还，皓大会群臣，蕃沉醉顿伏，皓疑而不悦，举之出外，顷之请还而酒不解；皓大怒，呵左右于殿下斩之，时年三十九，家属徙广州。陆凯上疏称其「黄中通理，处朝忠蹇，斯社稷之重镇，大吴之龙逢也」，而终不能救。（《三国志·王蕃传》）",
+    appear: [240, 266],
+    impact: 2
+  },
+  "bu_chan": {
+    id: "bu_chan",
+    name: "步阐",
+    aka: ["西陵督", "昭武将军", "宜都公"],
+    birth: null, death: 272,
+    faction: "wu",
+    roles: ["general"],
+    stats: { lead: 68, war: 62, int: 60, pol: 56, cha: 54 },
+    skills: [
+      { id: "leishi_xiling", name: "累世西陵", kind: "aura", desc: "伯骘、父协相继督西陵，阐继其业，所缮修备御之具皆其宿规。", mod: { citydef: 0.18, def: 0.06 }, tags: ["fortify"] },
+      { id: "jucheng_jiangjin", name: "据城降晋", kind: "active", cd: 6, dur: 3, desc: "被徵为绕帐督，自以失职又惧谗祸，遂据城降晋，遣子弟诣洛阳为任。", mod: { def: 0.12, morale: -6 }, tags: ["guard"] }
+    ],
+    traits: ["步骘之侄", "世督西陵", "据城降晋", "族灭于抗"],
+    bio: "临淮淮阴人，丞相步骘之侄。骘卒，子协嗣统所领，协卒，阐继业为西陵督，加昭武将军，封西亭侯。凤皇元年（272）皓徵阐为绕帐督，阐累世在西陵，卒被徵命，自以失职，又惧有谗祸，遂据城降晋，遣子玑与弟璿诣洛阳为任；晋以阐为都督西陵诸军事、卫将军、仪同三司、宜都公，命车骑将军羊祜、荆州刺史杨肇往救之。孙皓使陆抗西行，抗筑围内困阐而外围晋援，羊祜等遁退，抗遂陷西陵，斩阐等，步氏泯灭，惟璿绍祀。（《三国志·步骘传》）",
+    appear: [250, 272],
+    impact: 3
+  },
+  "he_ding": {
+    id: "he_ding",
+    name: "何定",
+    aka: ["殿中列将"],
+    birth: null, death: 272,
+    faction: "wu",
+    roles: ["general"],
+    stats: { lead: 46, war: 48, int: 56, pol: 50, cha: 44 },
+    skills: [
+      { id: "shichong_nongquan", name: "恃宠弄权", kind: "passive", desc: "本趋走小人，皓爱其佞媚而假以威柄，遂恃宠放恣，自擅威福。", mod: { gold: 200, morale: -5 }, tags: ["dread"] },
+      { id: "fa_jiangbianbing", name: "发江边戍兵", kind: "active", cd: 5, dur: 2, desc: "发江边戍兵以驱麋鹿，结置山陵，芟夷林莽，兵士疲于运送，老弱饥冻。", mod: { food: -200, atk: -0.06 }, tags: ["raiding"] },
+      { id: "jian_zao_shengxi", name: "建议凿圣谿", kind: "passive", desc: "建议凿圣谿以通江淮，皓令薛莹督万人往，以多盘石难施功而罢。", mod: { landmove: 1, food: -100 }, tags: ["logistics"] }
+    ],
+    traits: ["佞巧便辟", "贵幸任事", "为陆凯面责", "奸秽伏诛"],
+    bio: "吴末殿中列将，本趋走小人，无锱铢之行，皓爱其佞媚而假以威柄。定恃宠放恣，自擅威福，妄兴事役，发江边戍兵以驱麋鹿，兵士疲于运送，老弱饥冻；又建议凿圣谿以通江淮，皓令薛莹督万人往，卒以盘石难施功而罢。贺邵上疏斥其「恃宠放恣，自擅威福，口正国议，手弄天机」；陆凯亦面责之曰：「卿见前后事主不忠，倾乱国政，宁有得以寿终者邪！」凤皇元年（272）定奸秽发闻，伏诛，皓以其恶似张布，追改定名为布。（《三国志·孙皓传》《贺邵传》《陆凯传》）",
+    appear: [255, 272],
+    impact: 2
+  },
+  "cen_hun": {
+    id: "cen_hun",
+    name: "岑昏",
+    aka: ["九列"],
+    birth: null, death: 280,
+    faction: "wu",
+    roles: ["minister"],
+    stats: { lead: 30, war: 24, int: 60, pol: 58, cha: 42 },
+    skills: [
+      { id: "xianyu_guixing", name: "险谀贵幸", kind: "passive", desc: "险谀贵幸，致位九列，好兴功役，众所患苦，上下离心，莫为皓尽力。", mod: { gold: 200, morale: -6 }, tags: ["dread"] },
+      { id: "ying_zao_gongshi", name: "营造宫室", kind: "aura", desc: "皓起显明宫而移居之，土木之役无有穷已，州郡征调，民力凋弊。", mod: { citydef: 0.10, food: -150 }, tags: ["fortify"] }
+    ],
+    traits: ["险谀贵幸", "好兴功役", "上下离心", "为殿中亲近所请杀"],
+    bio: "吴末佞臣，险谀贵幸，致位九列，好兴功役，广营宫室，众所患苦；陈寿论皓之亡曰「是以上下离心，莫为皓尽力，盖积恶已极」。天纪四年（280）王濬顺流将至，殿中亲近数百人叩头请皓杀岑昏，皓惶愦从之，遂斩之，以谢三军。（《三国志·孙皓传》）",
+    appear: [260, 280],
+    impact: 2
+  },
+  "tao_huang": {
+    id: "tao_huang",
+    name: "陶璜",
+    zi: "世英",
+    aka: ["苍梧太守", "交州牧", "宛陵侯"],
+    birth: null, death: null,
+    faction: "wu",
+    roles: ["general", "minister"],
+    stats: { lead: 78, war: 76, int: 74, pol: 72, cha: 68 },
+    skills: [
+      { id: "hai_dao_chu_qi", name: "海道出不意", kind: "active", cd: 5, dur: 2, desc: "从海道径至交阯，破九真太守董元；又以前所得宝船上锦物数千匹遗扶严贼帅，得万余人助战。", mod: { watermove: 1, atk: 0.14 }, tags: ["naval"] },
+      { id: "duan_yan_tie", name: "断盐铁之市", kind: "passive", desc: "南岸仰吾盐铁，断勿与市，皆坏为田器，如此二年，可一战而灭也。", mod: { gold: 250, food: -100 }, tags: ["logistics"] },
+      { id: "hou_qi_yue", name: "许降者期讫", kind: "passive", desc: "稷等守未百日而粮尽乞降，璜不许，给其粮使守，须日满然后受降。", mod: { morale: 8, citydef: 0.08 }, tags: ["ritual"] }
+    ],
+    traits: ["陶基之子", "交阯破晋", "开置三郡", "在南三十年"],
+    bio: "字世英，丹阳秣陵人，吴交州刺史陶基之子。仕吴历显位，孙皓时为苍梧太守。建衡元年（269）皓遣监军虞汜、威南将军薛珝与璜由荆州道就合浦击交趾，璜屡破晋所置守将董元、毛炅等，遂陷交阯，九真、日南皆还属，以功领交州。皓以为使持节、都督交州诸军事、前将军、交州牧；武平、九德、新昌土地阻险，历世不宾，璜征讨，开置三郡及九真属国三十余县。天纪三年（279）郭马反于广州，皓命璜部伍合浦、郁林诸郡兵共击之。皓既降晋，手书敕璜归顺，璜流涕数日，遣使送印绶诣洛阳，晋复其本职。璜在南三十年，威恩著于殊俗，及卒，举州号哭，如丧慈亲。（《晋书·陶璜传》）",
+    appear: [255, 285],
+    impact: 4
   }
 };

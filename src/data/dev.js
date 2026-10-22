@@ -23,7 +23,7 @@ window.DEV = {
           ],
           list: [
             "index.html —— 主页面（承天受命／演武教战）与对局界面",
-            "wiki.html —— 兵书志略（玩法，九门八十二条）",
+            "wiki.html —— 兵书志略（玩法；本志九门八十二条，页面另有「人物志」一串，由武将数据自动编次）",
             "dev.html —— 匠作志略（本页，制作与实现）"
           ],
           note: "三页互达：主页面「兵书志略」入口通 wiki.html；wiki 页顶栏有「匠作志略」一链通本页；本页顶栏有「兵书志略」与「返回游戏」。",
@@ -47,10 +47,10 @@ window.DEV = {
               ["CHANGELOG.md", "改易之目：每版一条，最新者在上"],
               ["src/data/version.js", "版本数据：号、期、名、一句提要、版本之法"],
               ["src/data/map.js", "舆图：30×20 格正六边形地形、96 座城池、25 家势力（含无主）、8 个剧本与其归属"],
-              ["src/data/factions.js", "六组十五家二十五君主、各人国策"],
+              ["src/data/factions.js", "六组十五家二十六君主、各人国策"],
               ["src/data/generals_1..4.js", "武将文臣（分卷）"],
               ["src/data/lore.js", "典籍条目"],
-              ["src/data/stories_1..7.js", "二十五条故事线（章回、台词、内心、史注、抉择、成败结局）"],
+              ["src/data/stories_1..7.js", "二十六条故事线（章回、台词、内心、史注、抉择、成败结局）"],
               ["src/data/wiki.js", "兵书志略条文（玩法）"],
               ["src/data/dev.js", "匠作志略条文（本页）"],
               ["src/core/rules.js", "兵制、地形、相克、伤害与行军"],
@@ -62,6 +62,7 @@ window.DEV = {
               ["src/ui/render.js", "舆图绘事（canvas，六边形）"],
               ["src/ui/ui.js", "界面机杼"],
               ["src/ui/reader.js", "志略二页（兵书／匠作）共用之正文渲染"],
+              ["src/ui/roster.js", "人物志：依武将数据自动编次，由 wiki.html 于正文渲染前挂入兵书志略"],
               ["src/main.js", "入口：DOM 既备则启动 UI.boot"],
               ["tools/", "校验、推演与资源清单（见「工具与自检」）"]
             ]
@@ -134,7 +135,7 @@ window.DEV = {
           table: {
             head: ["文件", "顶层键", "内容"],
             rows: [
-              ["src/data/map.js", "MAP", "W／H／grid（30×20 格正六边形）、TERRAIN、CITIES（96）、FACTIONS（25）、ERAS（8）、ownersOf、neighbors／dist（六邻与六边距离）"],
+              ["src/data/map.js", "MAP", "W／H／grid（30×20 格正六边形）、TERRAIN、CITIES（96）、FACTIONS（25）、ERAS（9）、ownersOf、neighbors／dist（六邻与六边距离）"],
               ["src/data/factions.js", "FACTIONS_DATA", "GROUPS（6）、ENTRIES（15）、LORDS（25）、MECHS（国策）"],
               ["src/data/generals_1..4.js", "GENERALS／GENERALS_PART1..4", "武将文臣，按 faction 分组"],
               ["src/data/lore.js", "LORE", "典籍六类条目"],
@@ -547,7 +548,7 @@ window.DEV = {
               ["抉择与赏罚", "src/core/story.js · applyEffect"],
               ["章回体例", "src/ui/ui.js · openChapter；src/data/stories_1.js（体例示例）"],
               ["结局", "src/core/story.js · endingFor；src/ui/ui.js · showEnding"],
-              ["二十五条故事线", "src/core/story.js · allStories／storyFor；src/data/stories_1..6.js"],
+              ["二十六条故事线", "src/core/story.js · allStories／storyFor；src/data/stories_1..7.js"],
               ["史实原则", "README.md · 史实原则"]
             ]
           },
@@ -561,8 +562,8 @@ window.DEV = {
             "head": ["兵书志略之条目", "实现位置"],
             "rows": [
               ["分组一览", "src/data/factions.js · GROUPS／ENTRIES"],
-              ["二十五主一览", "src/data/factions.js · LORDS；src/data/map.js · ERAS"],
-              ["八个剧本", "src/data/map.js · ERAS／ownersOf"],
+              ["二十六主一览", "src/data/factions.js · LORDS；src/data/map.js · ERAS"],
+              ["九个剧本", "src/data/map.js · ERAS／ownersOf"],
               [
                 "黄巾·张角（新增一组）",
                 "src/data/generals_4.js（黄巾诸将）；src/data/stories_7.js（张角故事线）；src/data/map.js（huangjin 与 e184／e194 归属）"
@@ -619,7 +620,7 @@ window.DEV = {
           id: "tool-validate",
           title: "全量校验",
           body: [
-            "tools/validate.js 为交付前之总闸：把全部数据脚本在 Node 的沙箱里跑一遍，再逐项校其结构与契约，最后以二十五位君主各推演十二回合。任何一项不合即列出并退出码非零。"
+            "tools/validate.js 为交付前之总闸：把全部数据脚本在 Node 的沙箱里跑一遍，再逐项校其结构与契约，最后以二十六位君主各推演十二回合。任何一项不合即列出并退出码非零。"
           ],
           list: [
             "命令：node tools/validate.js",
@@ -775,16 +776,17 @@ window.DEV = {
               ["titleScreen", "主页面叠层（三入口、择主区、底栏）"],
               ["mainMenu / btnCampaign / btnTutorial / btnWiki", "三入口及各自动作"],
               ["picker / groupList / entryList", "择主区：分组列、条目牌与君主按钮"],
-              ["titleHint / btnPickBack / btnLorePreview / btnStart", "择主底栏"],
+              ["titleHint / btnPickBack / btnLorePreview / titleVer / btnStart", "择主底栏（含版本号）"],
               ["topbar / clock / resources", "对局顶栏：纪年与五项资源"],
               ["btnCourt / btnEndTurn", "庙堂、结束回合"],
-              ["main / map", "主区与舆图画布（内部 1200×800）"],
+              ["main / map", "主区与舆图画布（内部 1200×693，六边形外框宽高比所定）"],
               ["intel", "敌情浮牌（舆图左上）"],
               ["tutor", "教战面板（舆图右下）"],
               ["hint", "向外提示一行"],
               ["tabs / tabpanel", "侧栏五页签与面板"],
               ["overlay", "剧情／结局／庙堂／通用叠层"],
-              ["toasts", "提示堆栈"]
+              ["toasts", "提示堆栈"],
+              ["wikiNav / wikiMain / wikiCount / wikiVer（wiki.html、dev.html）", "志略二页的目录、正文、门条计数与版本号"]
             ]
           },
           src: "index.html；src/ui/ui.js"
@@ -793,14 +795,32 @@ window.DEV = {
           id: "canvas",
           title: "舆图绘制与点击换算",
           body: [
-            "舆图为单个 canvas，内部尺寸 1200×800（格宽 40 × 30 格 × 20 格），屏上以 CSS 满宽缩放，故屏上所见与实际像素不一。",
-            "点击换算须按 canvas.width / rect.width 求得比例，再折回格：先取 (clientX − rect.left) × kx，除以格宽，取整得格。若径用 clientX，画布被缩小时点击会落在错误的格上——选中与行军皆会失效。"
+            "舆图为单个 canvas，格为正六边形（尖顶、奇数行右移半格）。内部尺寸由外框宽高比定：宽 = (W + 0.5)·√3·s，高 = ((H − 1)·1.5 + 2)·s；W=30、H=20 时即 1200×693。屏上以 CSS 满宽缩放，故屏上所见与实际像素不一。",
+            "布局只由 src/ui/render.js · layout 一处算出：s（外接圆半径）、w（横向对边距 = √3s）、h（纵向对角距 = 2s）、ystep（行距 = 1.5s）与左上原点 ox／oy。格心用 center、格形用 hexPath、州名水印用城池重心经 center 折算。",
+            "点击换算须按 canvas.width / rect.width 求得比例，折回内部像素后交 tileAtPixel：先以格心 (0,0) 为原点化出轴向坐标 (q, r)，再作立方取整（cube round），最后回推偏置坐标得 col、row。若径用 clientX，画布被缩小时点击会落在错误的格上；若沿用方格时代的「除以格宽取整」，则斜向命中全错。"
           ],
           list: [
-            "绘制入口：src/ui/render.js · draw（地形 → 城池 → 可达格 → 部队 → 州域水印）",
-            "点击入口：src/ui/ui.js · onTile（五级判定：点我方部队即选；有选中则可击之敌／可攻之城／可达之格；点敌军或城池出敌情；空地报地形）"
+            "绘制入口：src/ui/render.js · draw（地形底 → 六边格线 → 州域水印 → 可达格 → 可击之敌／可攻之城 → 城池 → 部曲）",
+            "点击入口：src/ui/ui.js · onTile（五级判定：点我方部队即选；有选中则可击之敌／可攻之城／可达之格；点敌军或城池出敌情；空地报地形）",
+            "邻接与距离：一律走 src/data/map.js · neighbors／dist，不得再写 |dx| + |dy|"
           ],
-          src: "src/ui/render.js · TS／draw／hit；src/ui/ui.js · onTile"
+          src: "src/ui/render.js · layout／center／hexPath／tileAtPixel；src/data/map.js · neighbors／dist；src/ui/ui.js · onTile"
+        },
+        {
+          id: "roster",
+          title: "人物志（兵书志略之附卷）",
+          body: [
+            "「兵书志略」末卷「人物志」不写在 src/data/wiki.js 里，而由 src/ui/roster.js 依武将数据当场编次：如此增删武将、改技能，刷新页面即随之更新，不必二次维护。",
+            "wiki.html 除 wiki.js 之外，另载 map.js、factions.js、generals_1..4.js 与 roster.js，并在 Reader.mount 之前调用 Roster.attach()，把编好的节推到 window.WIKI.sections 之末。次序不可乱：势力名与次序取自 MAP.FACTIONS 与 FACTIONS_DATA，故二者须先于 roster.js 载入。",
+            "编次之法：Roster.registry() 合并诸卷武将；Roster.section(reg) 是纯函数，按「分组 → 条目 → 君主」之序推出生势力次序，无君主之家接于其后；一家逾五十人析为上下两段。每人一行：姓名（字某）、身份、五维，以及全部技能的名、类型、说明、数值加成与标签。"
+          ],
+          list: [
+            "Roster.registry() —— 合并 GENERALS 与 GENERALS_PART1..6，缺卷跳过",
+            "Roster.section(reg) —— 纯函数，返回 { id:'roster', name:'人物志', entries:[…] }，形状同 wiki.js 之节",
+            "Roster.attach() —— 推入 window.WIKI.sections 之末，重复调用不重复推入"
+          ],
+          note: "此类自动生成的文案同样受「兵书志略不得夹带实现细节」之限（tools/validate.js 的 TECH_IN_WIKI 正则），故译名与说明一律中文，不得出现文件名、字段名与函数名。",
+          src: "src/ui/roster.js；wiki.html；tools/validate.js · 人物志校验"
         },
         {
           id: "keys-bound",

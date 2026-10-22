@@ -27,8 +27,18 @@
 </div>
 
 <script src="src/data/version.js"></script>
+<script src="src/data/map.js"></script>
+<script src="src/data/factions.js"></script>
+<script src="src/data/generals_1.js"></script>
+<script src="src/data/generals_2.js"></script>
+<script src="src/data/generals_3.js"></script>
+<script src="src/data/generals_4.js"></script>
 <script src="src/data/wiki.js"></script>
+<script src="src/ui/roster.js"></script>
 <script src="src/ui/reader.js"></script>
-<script>Reader.mount(window.WIKI);</script>
+<script>
+Roster.attach();
+Reader.mount(window.WIKI);
+</script>
 </body>
 </html>

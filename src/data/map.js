@@ -402,6 +402,27 @@
         'shuofang': 'xianbei',
         'shangdang': 'wei', 'jinyang': 'jin'
       }
+    },
+    e264: {
+      year: 264, era: '魏咸熙元年·吴元兴元年', ruler: '魏元帝曹奂／吴末帝孙皓',
+      title: '蜀亡之后',
+      desc: '蜀汉既亡于前一年之冬，益州尽入司马氏；魏景元五年五月，司马昭进爵晋王，代魏之势已成。吴主孙休是年七月崩，濮阳兴、张布迎立乌程侯孙皓，改元元兴。江东之祚，自此入于末路。',
+      regions: {
+        '凉州': 'jin', '雍州': 'jin', '司隶': 'jin', '并州': 'jin', '冀州': 'jin',
+        '幽州': 'jin', '青州': 'jin', '兖州': 'jin', '徐州': 'jin', '豫州': 'jin',
+        '荆州': 'wu', '扬州': 'wu', '益州': 'jin', '交州': 'wu'
+      },
+      overrides: {
+        /* 荆州江北诸郡：南阳、襄阳、新野、樊城皆魏（晋）有；江陵、江夏及江南四郡仍属吴 */
+        'wan': 'jin', 'xinye': 'jin', 'fancheng': 'jin', 'xiangyang': 'jin',
+        /* 淮南寿春、合肥与东三郡之上庸：曹魏朝廷所存之地 */
+        'shouchun': 'wei', 'hefei': 'wei', 'shangyong': 'wei',
+        /* 辽东、乐浪等公孙氏旧地，既并于魏 */
+        'xiangping': 'jin', 'liaodong': 'jin', 'xuantu': 'jin', 'lelang': 'jin',
+        /* 塞外诸部 */
+        'danhan': 'xianbei', 'shuofang': 'xianbei', 'meiji': 'nanxiong',
+        'liucheng': 'wuhuan', 'yunzhong': 'xianbei'
+      }
     }
   };
 

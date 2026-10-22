@@ -1,7 +1,7 @@
 /* 《代汉涂高》 — 择主
- * 十四家可择之君，依其立身之同异，析为五组：
- *   匡鼎炎汉 / 霸府挟令 / 乱世枭雄 / 边地雄踞 / 江东虎踞
- * 每组之下为「条目」（十四家），条目之下为「君主」（二十四主）。
+ * 十五家可择之君，依其立身之同异，析为六组：
+ *   匡鼎炎汉 / 霸府挟令 / 乱世枭雄 / 边地雄踞 / 江东虎踞 / 苍天已死
+ * 每组之下为「条目」（十五家），条目之下为「君主」（二十六主）。
  */
 (function (root) {
   'use strict';
@@ -146,8 +146,8 @@
       tags: ['政教', '自足', '闭塞']
     },
     {
-      id: 'E_SUN', group: 'jiangdong', lords: ['sunjian', 'sunce', 'sunquan', 'sunxiu'],
-      name: '孙坚 · 孙策 · 孙权 · 孙休', sub: '武烈／长沙桓王／大／景',
+      id: 'E_SUN', group: 'jiangdong', lords: ['sunjian', 'sunce', 'sunquan', 'sunxiu', 'sunhao'],
+      name: '孙坚 · 孙策 · 孙权 · 孙休 · 孙皓', sub: '武烈／长沙桓王／大／景／归命侯',
       blurb: '猛虎起于长沙，伯符定江东，仲谋鼎足称帝，子烈除权臣而图治。',
       trick: '江东水军：水军与楼船战力甲天下，长江以南守城加成极强；然步骑北出乏力，且宗室与旧将世代相承，猜忌一起则自坏长城。',
       tags: ['水军', '守江', '猜忌']
@@ -356,6 +356,17 @@
       goal: '除权臣、复国柄，使江东复振。',
       intro: '孙权第六子，太平三年孙綝废孙亮而立之。即位之明年，与张布、丁奉密谋诛綝。好读书，欲立五经博士、置学官以教子弟；然三国之势已定，虽欲有为，力不能及。',
       start: ['jianye', 'wu', 'kuaiji', 'jianan', 'danyang', 'yuzhang', 'poyang', 'chaisang', 'lujiang']
+    },
+    sunhao: {
+      key: 'sunhao', name: '孙皓', zi: '元宗', title: '乌程侯·吴末帝', reign: '元兴·甘露·宝鼎·建衡·凤凰·天册·天玺·天纪', era: 'e264',
+      group: 'jiangdong',
+      faction: 'wu', capital: 'jianye', year: 264, difficulty: 5, difficultyName: '残照',
+      tag: '江东水军', mech: 'jiangdong',
+      goal: '据长江之险，全吴会之土；纵不能混一，亦不使江东先亡。',
+      intro: '孙权之孙、废太子和之子，字元宗，一名彭祖，字皓宗。永安元年封乌程侯，就国于乌程。永安七年（264）七月景帝孙休崩，太子幼弱，而蜀汉新亡、交趾携叛，吴人震惧，贪得长君；左典军万彧尝为乌程令，与皓相善，称其才识明断，是长沙桓王之畴，屡言于丞相濮阳兴、左将军张布，遂迎立之。初立发优诏、开仓廪、出宫女，当时翕然称为明主；未几即诛兴、布，其后骄暴多忌，好酒色、信巫觋，徙都武昌，滥刑忠良——江东之祚，自此入于末路。',
+      start: ['jianye', 'wu', 'kuaiji', 'jianan', 'danyang', 'yuzhang', 'poyang', 'chaisang', 'lujiang',
+        'jiangling', 'jiangxia', 'changsha', 'wuling', 'lingling', 'guiyang',
+        'nanhai', 'cangwu', 'longbian', 'jiaozhi']
     }
   };
 

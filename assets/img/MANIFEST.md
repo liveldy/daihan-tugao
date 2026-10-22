@@ -14,58 +14,59 @@
 
 君主另可用君主 key 作后备文件名（如 `zhangjiao.png`）；找不到君主 key 的图时，自动回退找该君主对应的武将 id。
 
-君主 key（25 个）：
+君主 key（26 个）：
 
 ```
-zhangjiao xian liubei liushan liuyan liuzhang liubiao caocao caopi caorui simayi simazhao dongzhuo yuanshao yuanshu gongsundu gongsunkang gongsunyuan mateng zhangxiu zhanglu sunjian sunce sunquan sunxiu
+zhangjiao xian liubei liushan liuyan liuzhang liubiao caocao caopi caorui simayi simazhao dongzhuo yuanshao yuanshu gongsundu gongsunkang gongsunyuan mateng zhangxiu zhanglu sunjian sunce sunquan sunxiu sunhao
 ```
 
-武将 id（435 个）：
+武将 id（443 个）：
 
 ```
-a_gui.png  bai_rao.png  bei_yan.png  beigong_boyu.png  bian_zhang.png  bing_yuan.png  bo_cai.png  bu_dugen.png
-bu_ji.png  bu_zhi.png  cai_mao.png  cai_yan.png  cai_yong.png  cao_ang.png  cao_bao.png  cao_cao.png
-cao_chun.png  cao_hong.png  cao_pi.png  cao_ren.png  cao_rui.png  cao_shuang.png  cao_xiu.png  cao_zhang.png
-cao_zhen.png  cao_zhi.png  chen_deng.png  chen_gong.png  chen_gui.png  chen_pu.png  chen_qun.png  chen_tai.png
-chen_wu.png  cheng_bing.png  cheng_gongying.png  cheng_lian.png  cheng_pu.png  cheng_yi.png  cheng_yin.png  cheng_yu.png
-chong_ji.png  chunyu_qiong.png  cuan_xi.png  cui_yan.png  deng_ai.png  deng_xian.png  deng_zhi.png  dian_wei.png
-ding_feng.png  ding_gu.png  dong_cheng.png  dong_he.png  dong_xi.png  dong_yun.png  dong_zhao.png  dong_zhuo.png
-du_yu.png  duan_wei.png  e_zhesai.png  fa_zheng.png  fan_chou.png  fan_shen.png  fei_shi.png  fei_yi.png
-fei_zhan.png  feng_ji.png  fu_luohan.png  fu_qian.png  fu_shiren.png  fu_shou.png  fu_wan.png  fu_xun.png
-gan_ning.png  gao_ding.png  gao_gan.png  gao_lan.png  gao_shun.png  gong_du.png  gongsun_du.png  gongsun_gong.png
-gongsun_kang.png  gongsun_mo.png  gongsun_yuan.png  gu_jin.png  gu_yong.png  guan_hai.png  guan_ning.png  guan_ping.png
-guan_xing.png  guan_yu.png  guanqiu_jian.png  guo_huai.png  guo_jia.png  guo_si.png  guo_tai.png  guo_tu.png
-guo_youzhi.png  guo_yuan.png  han_dang.png  han_song.png  han_sui.png  he_qi.png  he_shao.png  he_yan.png
-he_yi.png  heishan_yang_feng.png  hou_cheng.png  hou_xuan.png  hu_chuquan.png  hu_zhen.png  hu_zong.png  hua_he.png
-hua_xin.png  hua_xiong.png  huan_lin.png  huang_chong.png  huang_gai.png  huang_luan.png  huang_quan.png  huang_shao.png
-huang_wan.png  huang_zhong.png  huang_zu.png  huangfu_song.png  huangjin_hanzhong.png  huangjin_zhang_bao.png  huo_yi.png  ji_ling.png
-ji_yan.png  jia_chong.png  jia_xu.png  jian_yong.png  jiang_bin.png  jiang_ji.png  jiang_qin.png  jiang_wan.png
-jiang_wei.png  jiang_yi_qu.png  jiao_shi_yi.png  jin_qi.png  ju_fu.png  ju_shou.png  jue_ji.png  kan_ze.png
-ke_yineng.png  kong_rong.png  kuai_liang.png  kuai_yue.png  lei_xu.png  leng_bao.png  li_dian.png  li_jue.png
-li_kan.png  li_ru.png  li_su.png  li_tong.png  li_wenhou.png  li_xiu.png  li_yan.png  liang_xing.png
-liao_hua.png  liaodong_hanzhong.png  liaodong_yang_yi.png  ling_cao.png  ling_tong.png  liu_ba.png  liu_bao.png  liu_bei.png
-liu_biao.png  liu_cong.png  liu_dai.png  liu_feng.png  liu_pan.png  liu_pi.png  liu_qi.png  liu_shan.png
-liu_xi.png  liu_xian.png  liu_xie.png  liu_xun.png  liu_yan.png  liu_yan_2.png  liu_yao.png  liu_ye.png
-liu_yi.png  liu_yin.png  liu_yu.png  liu_zan.png  liu_zhang.png  lou_ban.png  lu_ji.png  lu_kai.png
-lu_kang.png  lu_mao.png  lu_su.png  lu_xun.png  lu_zhi.png  luo_tong.png  luo_xian.png  lv_bu.png
-lv_dai.png  lv_fan.png  lv_ju.png  lv_meng.png  lv_yi.png  ma_chao.png  ma_dai.png  ma_liang.png
-ma_ridi.png  ma_su.png  ma_teng.png  ma_tie.png  ma_wan.png  ma_xiu.png  ma_yuanyi.png  ma_zhong.png
-ma_zhong_wu.png  man_chong.png  mao_gan.png  meng_da.png  meng_huo.png  meng_yan.png  meng_zong.png  mi_fang.png
-mi_jia.png  mi_zhu.png  murong_muyan.png  nan_lou.png  niu_fu.png  pan_furen.png  pan_zhang.png  pang_de.png
-pang_tong.png  peng_cai.png  pu_tou.png  puyang_xing.png  qian_zhao.png  qiao_rui.png  qiao_zhou.png  qiu_liju.png
-qu_bei.png  qu_yi.png  quan_cong.png  sha_mohan.png  shen_pei.png  shen_ying.png  shi_hui.png  shi_ji.png
-shi_sun_rui.png  shi_wei.png  shi_wu.png  shi_xie.png  shi_yi.png  sima_fu.png  sima_ju.png  sima_shi.png
-sima_yi.png  sima_zhao.png  song_jian.png  song_xian.png  su_li.png  su_puyan.png  sui_gu.png  sun_ben.png
-sun_ce.png  sun_chen.png  sun_fu.png  sun_he.png  sun_huan.png  sun_huan_jiming.png  sun_jian.png  sun_jiao.png
-sun_jing.png  sun_jun.png  sun_kuang.png  sun_lang.png  sun_liang.png  sun_luban.png  sun_luyu.png  sun_qian.png
-sun_quan.png  sun_shao.png  sun_xia.png  sun_xiang.png  sun_xiu.png  sun_yi.png  sun_yu.png  ta_dun.png
-taishi_ci.png  tan_shihu.png  tao_jun.png  tao_qian.png  teng_yin.png  tian_feng.png  tian_yu.png  tuoba_liwei.png
-wang_can.png  wang_furen.png  wang_jun.png  wang_lang.png  wang_lei.png  wang_lie.png  wang_ling.png  wang_ping.png
-wang_su.png  wang_tong.png  wang_yun.png  wei_xu.png  wei_yan.png  wei_yao.png  wen_chou.png  wen_pin.png
-wu_ban.png  wu_can.png  wu_furen.png  wu_jing.png  wu_shuo.png  wu_yan.png  wu_yi.png  wuhuan_wu_yan.png
-xi_zheng.png  xiahou_dun.png  xiahou_shang.png  xiahou_xuan.png  xiahou_yuan.png  xiang_lang.png  xin_pi.png  xu_cao_hong.png
-xu_chu.png  xu_dan.png  xu_he.png  xu_huang.png  xu_rong.png  xu_sheng.png  xu_shi.png  xu_xiang.png
-xu_you.png  xue_zong.png  xun_chen.png  xun_you.png  xun_yu.png  yan_jun.png  yan_liang.png  yan_pu.png
+a_gui.png  bai_rao.png  bei_yan.png  beigong_boyu.png  bian_zhang.png  bing_yuan.png  bo_cai.png  bu_chan.png
+bu_dugen.png  bu_ji.png  bu_zhi.png  cai_mao.png  cai_yan.png  cai_yong.png  cao_ang.png  cao_bao.png
+cao_cao.png  cao_chun.png  cao_hong.png  cao_pi.png  cao_ren.png  cao_rui.png  cao_shuang.png  cao_xiu.png
+cao_zhang.png  cao_zhen.png  cao_zhi.png  cen_hun.png  chen_deng.png  chen_gong.png  chen_gui.png  chen_pu.png
+chen_qun.png  chen_tai.png  chen_wu.png  cheng_bing.png  cheng_gongying.png  cheng_lian.png  cheng_pu.png  cheng_yi.png
+cheng_yin.png  cheng_yu.png  chong_ji.png  chunyu_qiong.png  cuan_xi.png  cui_yan.png  deng_ai.png  deng_xian.png
+deng_zhi.png  dian_wei.png  ding_feng.png  ding_gu.png  dong_cheng.png  dong_he.png  dong_xi.png  dong_yun.png
+dong_zhao.png  dong_zhuo.png  du_yu.png  duan_wei.png  e_zhesai.png  fa_zheng.png  fan_chou.png  fan_shen.png
+fei_shi.png  fei_yi.png  fei_zhan.png  feng_ji.png  fu_luohan.png  fu_qian.png  fu_shiren.png  fu_shou.png
+fu_wan.png  fu_xun.png  gan_ning.png  gao_ding.png  gao_gan.png  gao_lan.png  gao_shun.png  gong_du.png
+gongsun_du.png  gongsun_gong.png  gongsun_kang.png  gongsun_mo.png  gongsun_yuan.png  gu_jin.png  gu_yong.png  guan_hai.png
+guan_ning.png  guan_ping.png  guan_xing.png  guan_yu.png  guanqiu_jian.png  guo_huai.png  guo_jia.png  guo_si.png
+guo_tai.png  guo_tu.png  guo_youzhi.png  guo_yuan.png  han_dang.png  han_song.png  han_sui.png  he_ding.png
+he_qi.png  he_shao.png  he_yan.png  he_yi.png  heishan_yang_feng.png  hou_cheng.png  hou_xuan.png  hu_chuquan.png
+hu_zhen.png  hu_zong.png  hua_he.png  hua_xin.png  hua_xiong.png  huan_lin.png  huang_chong.png  huang_gai.png
+huang_luan.png  huang_quan.png  huang_shao.png  huang_wan.png  huang_zhong.png  huang_zu.png  huangfu_song.png  huangjin_hanzhong.png
+huangjin_zhang_bao.png  huo_yi.png  ji_ling.png  ji_yan.png  jia_chong.png  jia_xu.png  jian_yong.png  jiang_bin.png
+jiang_ji.png  jiang_qin.png  jiang_wan.png  jiang_wei.png  jiang_yi_qu.png  jiao_shi_yi.png  jin_qi.png  ju_fu.png
+ju_shou.png  jue_ji.png  kan_ze.png  ke_yineng.png  kong_rong.png  kuai_liang.png  kuai_yue.png  lei_xu.png
+leng_bao.png  li_dian.png  li_jue.png  li_kan.png  li_ru.png  li_su.png  li_tong.png  li_wenhou.png
+li_xiu.png  li_yan.png  liang_xing.png  liao_hua.png  liaodong_hanzhong.png  liaodong_yang_yi.png  ling_cao.png  ling_tong.png
+liu_ba.png  liu_bao.png  liu_bei.png  liu_biao.png  liu_cong.png  liu_dai.png  liu_feng.png  liu_pan.png
+liu_pi.png  liu_qi.png  liu_shan.png  liu_xi.png  liu_xian.png  liu_xie.png  liu_xun.png  liu_yan.png
+liu_yan_2.png  liu_yao.png  liu_ye.png  liu_yi.png  liu_yin.png  liu_yu.png  liu_zan.png  liu_zhang.png
+lou_ban.png  lu_ji.png  lu_kai.png  lu_kang.png  lu_mao.png  lu_su.png  lu_xun.png  lu_zhi.png
+luo_tong.png  luo_xian.png  lv_bu.png  lv_dai.png  lv_fan.png  lv_ju.png  lv_meng.png  lv_yi.png
+ma_chao.png  ma_dai.png  ma_liang.png  ma_ridi.png  ma_su.png  ma_teng.png  ma_tie.png  ma_wan.png
+ma_xiu.png  ma_yuanyi.png  ma_zhong.png  ma_zhong_wu.png  man_chong.png  mao_gan.png  meng_da.png  meng_huo.png
+meng_yan.png  meng_zong.png  mi_fang.png  mi_jia.png  mi_zhu.png  murong_muyan.png  nan_lou.png  niu_fu.png
+pan_furen.png  pan_zhang.png  pang_de.png  pang_tong.png  peng_cai.png  pu_tou.png  puyang_xing.png  qian_zhao.png
+qiao_rui.png  qiao_zhou.png  qiu_liju.png  qu_bei.png  qu_yi.png  quan_cong.png  sha_mohan.png  shen_pei.png
+shen_ying.png  shi_hui.png  shi_ji.png  shi_sun_rui.png  shi_wei.png  shi_wu.png  shi_xie.png  shi_yi.png
+sima_fu.png  sima_ju.png  sima_shi.png  sima_yi.png  sima_zhao.png  song_jian.png  song_xian.png  su_li.png
+su_puyan.png  sui_gu.png  sun_ben.png  sun_ce.png  sun_chen.png  sun_fu.png  sun_hao.png  sun_he.png
+sun_huan.png  sun_huan_jiming.png  sun_jian.png  sun_jiao.png  sun_jing.png  sun_jun.png  sun_kuang.png  sun_lang.png
+sun_liang.png  sun_luban.png  sun_luyu.png  sun_qian.png  sun_quan.png  sun_shao.png  sun_xia.png  sun_xiang.png
+sun_xiu.png  sun_yi.png  sun_yu.png  ta_dun.png  taishi_ci.png  tan_shihu.png  tao_huang.png  tao_jun.png
+tao_qian.png  teng_yin.png  tian_feng.png  tian_yu.png  tuoba_liwei.png  wan_yu.png  wang_can.png  wang_fan.png
+wang_furen.png  wang_jun.png  wang_lang.png  wang_lei.png  wang_lie.png  wang_ling.png  wang_ping.png  wang_su.png
+wang_tong.png  wang_yun.png  wei_xu.png  wei_yan.png  wei_yao.png  wen_chou.png  wen_pin.png  wu_ban.png
+wu_can.png  wu_furen.png  wu_jing.png  wu_shuo.png  wu_yan.png  wu_yi.png  wuhuan_wu_yan.png  xi_zheng.png
+xiahou_dun.png  xiahou_shang.png  xiahou_xuan.png  xiahou_yuan.png  xiang_lang.png  xin_pi.png  xu_cao_hong.png  xu_chu.png
+xu_dan.png  xu_he.png  xu_huang.png  xu_rong.png  xu_sheng.png  xu_shi.png  xu_xiang.png  xu_you.png
+xue_ying.png  xue_zong.png  xun_chen.png  xun_you.png  xun_yu.png  yan_jun.png  yan_liang.png  yan_pu.png
 yan_xiang.png  yan_xing.png  yan_yan.png  yang_ang.png  yang_biao.png  yang_feng.png  yang_hong.png  yang_hong_zhong.png
 yang_hu.png  yang_qianwan.png  yang_qiu.png  yang_ren.png  yang_xiu.png  yang_yi.png  yang_zuo.png  yi_ji.png
 yong_kai.png  you_tu.png  yu_du.png  yu_fan.png  yu_fu_luo.png  yu_jin.png  yuan_shang.png  yuan_shao.png
@@ -134,9 +135,9 @@ zhuge_zhan.png  zong_yu.png  zu_lang.png
 |---|---|---|
 | 都城 | `duzhou.png` | 6 |
 | 州治 | `zhouzhi.png` | 10 |
-| 重镇 | `zhongzhen.png` | 38 |
-| 县城 | `xiancheng.png` | 23 |
-| 关隘 | `guanai.png` | 6 |
+| 重镇 | `zhongzhen.png` | 40 |
+| 县城 | `xiancheng.png` | 30 |
+| 关隘 | `guanai.png` | 7 |
 | 港口 | `gangkou.png` | 3 |
 
 建议 48×48 或与格同宽，主体居中，四周留白少许。
