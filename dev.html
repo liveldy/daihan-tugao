@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#f2ebdd">
 <meta name="mobile-web-app-capable" content="yes">
 <title>匠作志略 · 代汉涂高</title>
-<meta name="description" content="《代汉涂高》匠作志略：目录架构、脚本加载次序、数据契约与白名单、图象资源路径、校验工具与扩展指南。">
+<meta name="description" content="《代汉涂高》匠作志略：目录架构、脚本加载次序、数据契约与白名单、图象资源路径、校验工具与扩展指南。仅管理员可见。">
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
@@ -29,8 +29,10 @@
 </div>
 
 <script src="src/data/version.js"></script>
+<script src="src/data/account.js"></script>
 <script src="src/data/dev.js"></script>
 <script src="src/ui/reader.js"></script>
-<script>Reader.mount(window.DEV);</script>
+<script src="src/ui/gate.js"></script>
+<script>Gate.dev();</script>
 </body>
 </html>

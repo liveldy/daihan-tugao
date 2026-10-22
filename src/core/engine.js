@@ -33,6 +33,47 @@
     return g;
   }
 
+  /* —— 乡里：在野之人的寄居之城 ——
+   * 未立之国，其人以「别局之都城」为乡里：晋人归洛阳，蜀人归成都，吴人归建业，皆其本据。
+   * 有国者则归其国当世之重镇。此制为「征辟」与「氏族」二事之根：乡里在我，方可得而辟之。
+   */
+  var SEAT = null;
+  function factionSeat(f) {
+    if (!SEAT) {
+      SEAT = {};
+      /* 以「最晚之局」为准：凡一国，取其立国既久之时所都之城（晋取洛阳、蜀取成都、吴取建业） */
+      Object.keys(MAP.ERAS).map(function (k) { return k; })
+        .sort(function (a, b) { return (MAP.ERAS[a].year || 0) - (MAP.ERAS[b].year || 0); })
+        .forEach(function (ek) {
+          var own;
+          try { own = MAP.ownersOf(ek); } catch (e) { return; }
+          var best = {};
+          Object.keys(own).forEach(function (cid) {
+            var k = own[cid];
+            if (k === 'neutral') { return; }
+            var lv = (MAP.CITY_INDEX[cid] || {}).level || 1;
+            if (!best[k] || lv > best[k].level || (lv === best[k].level && cid < best[k].city)) {
+              best[k] = { city: cid, level: lv };
+            }
+          });
+          Object.keys(best).forEach(function (k) { SEAT[k] = best[k]; });
+        });
+    }
+    return SEAT[f] ? SEAT[f].city : null;
+  }
+
+  function homeCity(st, def) {
+    var f = def.faction;
+    if (f && st.factions[f] && st.factions[f].alive) {
+      var mine = Object.keys(st.cities).filter(function (c) { return st.cities[c].owner === f; });
+      if (mine.length) {
+        mine.sort(function (a, b) { return st.cities[b].level - st.cities[a].level || a.localeCompare(b); });
+        return mine[0];
+      }
+    }
+    return factionSeat(f);
+  }
+
   function livingGenerals(registry, year) {
     var out = [];
     Object.keys(registry).forEach(function (id) {
@@ -109,8 +150,15 @@
     };
     st.rng = mulberry32(st.seed);
 
+    /* 君主本人之将佐 id：君主阵亡即社稷倾覆，故须随时可考 */
+    var lk = Object.keys(registry).filter(function (id) { return registry[id].name === lord.name; });
+    st.lordGeneral = lk.length ? lk[0] : null;
+    st.lordDown = false;
+
     // 朝局：党争、名分与储位（见 src/core/politics.js）
     if (root.Politics) { root.Politics.init(st); }
+    // 氏族：姓氏之门第与向背（见 src/core/clans.js）
+    if (root.Clans) { root.Clans.init(st); }
 
     // 势力初始化
     Object.keys(MAP.FACTIONS).forEach(function (k) {
@@ -124,14 +172,18 @@
     // 城池
     MAP.CITIES.forEach(function (c) {
       var own = owners[c.id] || 'neutral';
+      var pop = root.Population ? root.Population.base(c) : 10;
       st.cities[c.id] = {
         id: c.id, name: c.name, zhou: c.zhou, kind: c.kind, level: c.level,
         x: c.x, y: c.y, owner: own, wall: c.level * 40,
         garrison: c.level * 160, maxGarrison: c.level * 160,
-        morale: 70, unrest: 0, dev: 0, recruit: 0
+        morale: 70, unrest: 0, dev: 0, recruit: 0,
+        pop: pop, popBase: pop, lastRest: -99      // 户口（万口）：见 src/core/population.js
       };
       if (own !== 'neutral') { st.factions[own].alive = true; }
     });
+    // 记「本局曾有其国」：开局有城者，虽后亡，其士犹可为吾所辟
+    Object.keys(st.factions).forEach(function (k) { st.factions[k].everAlive = !!st.factions[k].alive; });
 
     // 邦交：乱世之初，诸侯相攻
     var alive0 = Object.keys(st.factions).filter(function (k) { return st.factions[k].alive; });
@@ -178,6 +230,13 @@
         if (st.generals[g.id]) { return; }
         st.generals[g.id] = { id: g.id, owner: f === 'neutral' ? null : f, status: 'wild', city: null, loyalty: 70 };
       });
+    });
+
+    // 在野之人各归其乡：乡里在我，方可得而辟之（见 recruitable）
+    Object.keys(st.generals).forEach(function (gid) {
+      var g = st.generals[gid];
+      if (g.status !== 'wild') { return; }
+      g.city = homeCity(st, registry[gid] || {});
     });
 
     // 起始军队：主场据首都与要镇，余城留将守备
@@ -448,12 +507,29 @@
           g.status = 'dead'; g.owner = null;
           log(st, '　' + (def ? def.name : u.general) + '殁于阵。', 'bad');
         }
+        if (u.general === st.lordGeneral) { lordDown(st, captured && killer ? 'captured' : 'slain', killer); }
       }
     }
     st.units = st.units.filter(function (x) { return x !== u; });
     if (killer && killer.faction === st.player) {
       if (killer === u) { st.stats.battlesLost++; } else { st.stats.battlesWon++; }
     }
+  }
+
+  /* —— 君主阵亡 ——
+   * 汉末之世，君在则国在：君主阵殁或见擒于敌，则社稷倾覆，此局即终，
+   * 虽城池部曲俱在，亦不复兴。 */
+  function lordDown(st, kind, killer) {
+    if (st.lordDown || st.result) { return st.result; }
+    st.lordDown = { kind: kind, general: st.lordGeneral, by: killer ? killer.faction : null, turn: st.turn };
+    var nm = st.lord ? st.lord.name : '君主';
+    var who = killer ? sideName(killer.faction) : '乱军';
+    log(st, kind === 'captured'
+      ? '【' + nm + '】为' + who + '所擒，社稷倾覆。'
+      : '【' + nm + '】殁于阵中，社稷倾覆。', 'bad');
+    st.result = { win: false, faction: st.player, reason: 'lord', how: kind, by: killer ? killer.faction : null };
+    st.phase = 'over';
+    return st.result;
   }
 
   /* —— 攻城 —— */
@@ -508,11 +584,22 @@
     var cost = recruitCost(st, type, cityId);
     if (f.gold < cost) { return fail('金帛不足（需 ' + cost + '）'); }
     if (st.units.filter(function (u) { return u.faction === c.owner; }).length >= 24) { return fail('部曲已满'); }
+    /* 征兵之根在户口：户口不足则无兵可征（见 src/core/population.js） */
+    var P = root.Population;
+    if (P) {
+      var can = P.canRecruit(st, cityId, type);
+      if (!can.ok) { return fail(can.why); }
+    }
     f.gold -= cost;
     var u = spawnUnit(st, c.owner, cityId, type, generalId || null);
     u.acted = true; u.moveLeft = 0;
-    log(st, sideName(c.owner) + '于' + c.name + '征' + Rules.UNITS[type].name + '一部。', 'info');
-    return ok_('已征募' + Rules.UNITS[type].name, u);
+    var levy = P ? P.spend(st, cityId, type) : null;
+    log(st, sideName(c.owner) + '于' + c.name + '征' + Rules.UNITS[type].name + '一部' +
+      (levy ? '，调发户口 ' + P.num(levy.need) + '（今 ' + P.num(levy.after) + ' 万口）' : '') + '。', 'info');
+    if (levy && levy.heavy && c.owner === st.player) {
+      log(st, '　' + c.name + '大举征发，户口骤减，田野稍稍荒芜。', 'bad');
+    }
+    return ok_('已征募' + Rules.UNITS[type].name + (levy ? '（户口 −' + P.num(levy.need) + '）' : ''), u);
   }
 
   function upgradeCity(st, cityId) {
@@ -544,10 +631,62 @@
     return ok_('已赏赐');
   }
 
+  /* —— 征辟之制 ——
+   * 汉末征辟，本有门第与乡里之限：非其乡里之人，非其故主故吏，虽怀金帛亦不能致之。
+   * 故可辟者须四事皆合：
+   *   一、其人无主而在野；
+   *   二、其人非一方之主（天子与诸侯不可为臣，故汉献帝不可征辟）；
+   *   三、其人所居之城在吾疆（未立之国者，以其别局之本据为乡里——晋人归洛阳、蜀人归成都）；
+   *   四、其国已亡者可为吾用，惟名重天下者（影响五）耻为人下，不在其列。
+   */
+  function recruitRule(st, gid) {
+    var g = st.generals[gid];
+    if (!g) { return { ok: false, why: '无此人' }; }
+    if (g.status === 'dead') { return { ok: false, why: '此人已殁' }; }
+    if (st.units.some(function (u) { return u.general === gid; })) { return { ok: false, why: '此人在军，不可径辟' }; }
+    if (g.owner === st.player) { return { ok: false, why: '此人已为我之臣' }; }
+    if (g.owner) { return { ok: false, why: '此人为' + sideName(g.owner) + '效力' }; }
+    var def = allGenerals()[gid] || {};
+    var nm = def.name || gid;
+    if ((def.roles || []).indexOf('lord') >= 0) {
+      return { ok: false, why: nm + '为一方之主，岂可为臣' };
+    }
+    var f = def.faction;
+    var home = (g.city && st.cities[g.city]) ? st.cities[g.city] : null;
+    if (f && f === st.player) {
+      return { ok: true, why: '本朝旧人', home: home };
+    }
+    if (f && st.factions[f] && st.factions[f].everAlive && !st.factions[f].alive) {
+      if ((def.impact || 0) >= 5) { return { ok: false, why: nm + '名重天下，耻为人下' }; }
+      return { ok: true, why: '亡国之士，可为我用', home: home };
+    }
+    if (home && home.owner === st.player) {
+      return { ok: true, why: '其乡里' + home.name + '在吾疆', home: home };
+    }
+    /* 汉世征辟，多在本州：其乡里虽在他人之城，而与我同州者，亦可得而辟之 */
+    if (home && home.zhou && playerZhous(st)[home.zhou]) {
+      return { ok: true, why: '本州之士（乡里' + home.name + '·' + home.zhou + '）', home: home };
+    }
+    if (home) {
+      return { ok: false, why: '其人寄居' + home.name + '（' + sideName(home.owner) + '），非我州郡所能辟', home: home };
+    }
+    return { ok: false, why: '其乡里未有所考，无从征辟' };
+  }
+
+  /* 我方所有之州 */
+  function playerZhous(st) {
+    var out = {};
+    Object.keys(st.cities).forEach(function (k) {
+      if (st.cities[k].owner === st.player) { out[st.cities[k].zhou] = true; }
+    });
+    return out;
+  }
+
   function recruitGeneral(st, gid) {
     var g = st.generals[gid];
     if (!g) { return fail('无此人'); }
-    if (g.owner && g.owner !== st.player) { return fail('此人为他国效力'); }
+    var rule = recruitRule(st, gid);
+    if (!rule.ok) { return fail(rule.why); }
     var f = st.factions[st.player];
     var def = allGenerals()[gid];
     var cost = 80 + (def && def.impact ? def.impact * 60 : 120);
@@ -555,9 +694,28 @@
     f.gold -= cost;
     g.owner = st.player;
     g.status = 'wild';
+    g.city = null;
     g.loyalty = 70;
-    log(st, '征辟' + (def ? def.name : gid) + '。', 'good');
+    log(st, '征辟' + (def ? def.name : gid) + '（' + rule.why + '）。', 'good');
     return ok_('已征辟', g);
+  }
+
+  /* 在野可辟者之列（含其可辟之由），供界面与「天子诏书·征辟」取用 */
+  function recruitable(st) {
+    return Object.keys(st.generals).filter(function (gid) {
+      var g = st.generals[gid];
+      return g.status === 'wild' && !g.owner;
+    }).map(function (gid) {
+      var r = recruitRule(st, gid);
+      var def = allGenerals()[gid] || {};
+      return {
+        id: gid, name: def.name || gid, zi: def.zi || '', bio: def.bio || '',
+        impact: def.impact || 0, stats: def.stats || null, roles: def.roles || [],
+        faction: def.faction || null, home: r.home ? { id: r.home.id, name: r.home.name } : null,
+        open: !!r.ok, why: r.why,
+        cost: 80 + (def.impact ? def.impact * 60 : 120)
+      };
+    }).sort(function (a, b) { return (b.impact - a.impact) || a.name.localeCompare(b.name); });
   }
 
   function assignGeneral(st, gid, unitId) {
@@ -585,11 +743,22 @@
       if (!cs.length) { f.alive = false; return; }
       var mech = Rules.FACTION_MECH[k] || {};
       var gold = 0, food = 0, unrest = 0;
+      var popBefore = 0, popDelta = 0;
+      var P = root.Population;
       cs.forEach(function (cid) {
         var c = st.cities[cid];
         var cdef = MAP.CITY_INDEX[cid];
-        gold += cdef.gold * (1 + (mech.gold || 0)) * (0.30 + 0.05 * c.level) * (0.5 + c.morale / 200);
-        food += cdef.food * (1 + (mech.food || 0)) * (0.30 + 0.05 * c.level) * (0.5 + c.morale / 200);
+        /* 户口之消长：征兵则减，民安则滋息（见 src/core/population.js） */
+        var pf = 1;
+        if (P) {
+          if (c.pop == null) { c.pop = P.base(c); }
+          popBefore += c.pop;
+          var g = P.tick(st, c);
+          popDelta += g.delta;
+          pf = P.popFactor(st, c);
+        }
+        gold += cdef.gold * (1 + (mech.gold || 0)) * (0.30 + 0.05 * c.level) * (0.5 + c.morale / 200) * pf;
+        food += cdef.food * (1 + (mech.food || 0)) * (0.30 + 0.05 * c.level) * (0.5 + c.morale / 200) * pf;
         // 民心
         var drift = (c.unrest > 40 ? -2 : 1) + (mech.loyalty ? 1 : 0);
         c.morale = Math.max(0, Math.min(100, c.morale + drift));
@@ -612,12 +781,18 @@
         food += (m.food || 0);
       });
       // 党争内耗：朝中朋党相攻，则岁入折损（每十点党争减岁入百分之四，至多四成）
+      var drag = 1;
       if (k === st.player && st.court) {
-        var drag = 1 - Math.min(0.4, st.court.strife * 0.004);
+        drag = 1 - Math.min(0.4, st.court.strife * 0.004);
         gold *= drag; food *= drag;
       }
-      f.gold += Math.round(gold);
-      f.food += Math.round(food);
+      // 世族之向背：门第倾心则岁入稍增，世族离心则稍减（见 src/core/clans.js）
+      var cb = (k === st.player && root.Clans) ? root.Clans.bonuses(st) : null;
+      if (cb) { gold *= cb.gold; food *= cb.food; }
+      var goldIn = Math.round(gold), foodIn = Math.round(food);
+      var g0 = f.gold, f0 = f.food;
+      f.gold += goldIn;
+      f.food += foodIn;
       // 军粮
       var upkeep = st.units.filter(function (u) { return u.faction === k; })
         .reduce(function (a, u) { return a + Rules.UNITS[u.type].food * 3; }, 0);
@@ -630,6 +805,16 @@
         });
         if (k === st.player) { log(st, '粮尽，诸军减员。', 'bad'); }
       }
+      /* 本回合之出入，记于势力之上，供顶栏示「本回合收益变动」 */
+      var popNow = P ? P.total(st, k) : 0;
+      f.income = {
+        turn: st.turn, gold: goldIn, food: foodIn, upkeep: upkeep,
+        goldNet: f.gold - g0, foodNet: f.food - f0,
+        pop: Math.round(popNow * 10) / 10,
+        popDelta: popDelta ? Math.round(popDelta * 10) / 10 : (popBefore ? Math.round((popNow - popBefore) * 10) / 10 : 0),
+        drag: Math.round(drag * 100) / 100,
+        clans: cb ? { gold: Math.round((cb.gold - 1) * 100), food: Math.round((cb.food - 1) * 100), said: cb.said } : null
+      };
     });
 
     // 城中守备恢复
@@ -657,6 +842,7 @@
     });
     // 在野之士游历
     if (root.Politics) { root.Politics.tick(st); }
+    if (root.Clans) { root.Clans.tick(st); }
     maybeWanderers(st);
     refreshFog(st);
     checkDefeat(st);
@@ -715,8 +901,14 @@
 
   function checkDefeat(st) {
     if (st.result) { return; }
+    /* 君主阵亡或见擒，则社稷倾覆，虽城郭部曲俱在亦终（见 lordDown） */
+    var lg = st.lordGeneral ? st.generals[st.lordGeneral] : null;
+    if (lg && (lg.status === 'dead' || (lg.owner && lg.owner !== st.player))) {
+      lordDown(st, lg.status === 'dead' ? 'slain' : 'captured', null);
+      return;
+    }
     if (countCities(st, st.player) === 0 && !st.units.some(function (u) { return u.faction === st.player && u.hp > 0; })) {
-      st.result = { win: false, faction: st.player };
+      st.result = { win: false, faction: st.player, reason: 'ruin' };
       st.phase = 'over';
     }
   }
@@ -829,16 +1021,12 @@
       if (f.prestige < 15) { return fail('威望不足以征辟'); }
       st.flags['last_edict'] = st.turn;
       f.prestige -= 15;
-      var wilds = Object.keys(st.generals).filter(function (k) {
-        return st.generals[k].status === 'wild' && !st.generals[k].owner;
-      });
+      var wilds = recruitable(st).filter(function (x) { return x.open; });
       if (!wilds.length) { return fail('海内无遗贤可征'); }
-      wilds.sort(function (a, b) {
-        var A = allGenerals()[a] || {}, B = allGenerals()[b] || {};
-        return (B.impact || 0) - (A.impact || 0);
-      });
-      var pick = wilds[0];
+      var pick = wilds[0].id;
       st.generals[pick].owner = me;
+      st.generals[pick].status = 'wild';
+      st.generals[pick].city = null;
       st.generals[pick].loyalty = 78;
       var d = allGenerals()[pick];
       log(st, '天子征辟' + (d ? d.name : pick) + '。', 'good');
@@ -871,6 +1059,51 @@
     return pol().resolveEvent(st, optIdx);
   }
 
+  /* ————— 户口与休养生息 ————— */
+  function restCity(st, cityId) {
+    if (!root.Population) { return fail('户口之制未立'); }
+    if (st.phase === 'over') { return fail('战事已终'); }
+    return root.Population.rest(st, cityId);
+  }
+
+  function restInfo(st, cityId) {
+    return root.Population ? root.Population.restInfo(st, cityId) : { ok: false, why: '' };
+  }
+
+  function popOf(st, cityId) {
+    return root.Population ? root.Population.of(st, cityId) : 0;
+  }
+
+  function popTotal(st, faction) {
+    return root.Population ? root.Population.total(st, faction || st.player) : 0;
+  }
+
+  /* ————— 氏族：通政之口 ————— */
+  function clansOf(st) {
+    if (!root.Clans || !st) { return []; }
+    var list = root.Clans.relevant(st);
+    return list.map(function (c) {
+      return {
+        id: c.id, name: c.name, junwang: c.junwang, trait: c.trait, desc: c.desc, src: c.src,
+        factions: c.factions || [],
+        support: Math.round(root.Clans.support(st, c.id)),
+        label: root.Clans.label(root.Clans.support(st, c.id)),
+        serving: root.Clans.serving(st, c),
+        recruitable: root.Clans.recruitable(st, c),
+        members: root.Clans.members(st, c)
+      };
+    });
+  }
+
+  function clanDo(st, id, action) {
+    if (!root.Clans) { return fail('氏族之制未立'); }
+    return root.Clans.act(st, id, action);
+  }
+
+  function clanActInfo(st, id, action) {
+    return root.Clans ? root.Clans.actInfo(st, id, action) : { ok: false, why: '氏族之制未立' };
+  }
+
   function ok_(msg, data) { return { ok: true, msg: msg, data: data }; }
   function fail(msg) { return { ok: false, msg: msg }; }
 
@@ -886,6 +1119,17 @@
     upgradeCity: upgradeCity,
     rewardGeneral: rewardGeneral,
     recruitGeneral: recruitGeneral,
+    recruitRule: recruitRule,
+    recruitable: recruitable,
+    restCity: restCity,
+    restInfo: restInfo,
+    popOf: popOf,
+    popTotal: popTotal,
+    clansOf: clansOf,
+    clanDo: clanDo,
+    clanActInfo: clanActInfo,
+    lordDown: lordDown,
+    factionSeat: factionSeat,
     assignGeneral: assignGeneral,
     diplomacy: diplomacy,
     relationOf: relationOf,

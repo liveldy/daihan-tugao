@@ -15,10 +15,13 @@ const FILES = [
   'src/data/politics_1.js',
   'src/data/generals_1.js', 'src/data/generals_2.js', 'src/data/generals_3.js', 'src/data/generals_4.js',
   'src/data/lore.js',
+  'src/data/clans_1.js', 'src/data/clans_2.js',
   'src/data/stories_1.js', 'src/data/stories_2.js', 'src/data/stories_3.js',
   'src/data/stories_4.js', 'src/data/stories_5.js', 'src/data/stories_6.js', 'src/data/stories_7.js',
   'src/data/wiki.js', 'src/data/dev.js',
-  'src/core/rules.js', 'src/core/campaign.js', 'src/core/politics.js', 'src/core/engine.js', 'src/core/story.js',
+  'src/core/rules.js', 'src/core/campaign.js', 'src/core/politics.js',
+  'src/core/population.js', 'src/core/clans.js',
+  'src/core/engine.js', 'src/core/story.js',
   'src/core/tutor.js', 'src/core/ai.js'
 ];
 
@@ -169,6 +172,85 @@ LORE.forEach(x => {
 });
 ok.push('典籍 ' + LORE.length + ' 条：' + CATS.map(c => c + ' ' + (catCount[c] || 0)).join('，'));
 CATS.forEach(c => { if ((catCount[c] || 0) < 14) warn.push('典籍「' + c + '」不足 14 条（实 ' + (catCount[c] || 0) + '）'); });
+
+/* —— 氏族：一姓之著者，members 须实名在册，factions 须真势力 —— */
+const CLANS = [].concat((sandbox.CLANS || {}).clans || [], (sandbox.CLANS_PART1 || {}).clans || [],
+  (sandbox.CLANS_PART2 || {}).clans || [], (sandbox.CLANS_PART3 || {}).clans || []);
+if (!CLANS.length) { errs.push('缺氏族数据（src/data/clans_1.js）'); }
+else {
+  const cid = new Set();
+  let members = 0;
+  const touched = new Set();
+  CLANS.forEach(c => {
+    if (!c.id || !/^[a-z][a-z0-9_]*$/.test(c.id)) { errs.push('氏族 id 非法：' + c.id); }
+    if (cid.has(c.id)) { errs.push('氏族 id 重复：' + c.id); }
+    cid.add(c.id);
+    ['name', 'junwang', 'trait', 'desc', 'src'].forEach(k => {
+      if (!c[k]) { errs.push('氏族 ' + (c.id || c.name) + ' 缺字段 ' + k); }
+    });
+    if (c.desc && c.desc.length > 200) { warn.push('氏族 ' + c.id + ' 的 desc 逾 200 字（' + c.desc.length + '）'); }
+    if (!Array.isArray(c.members) || c.members.length < 2) { errs.push('氏族 ' + c.id + ' 之成员不足二人'); }
+    const seen = new Set();
+    (c.members || []).forEach(id => {
+      members++;
+      if (!GEN[id]) { errs.push('氏族 ' + c.id + ' 的成员非武将：' + id); }
+      if (seen.has(id)) { errs.push('氏族 ' + c.id + ' 的成员重复：' + id); }
+      seen.add(id);
+      touched.add(id);
+    });
+    if (!Array.isArray(c.factions) || !c.factions.length) { errs.push('氏族 ' + c.id + ' 无 factions'); }
+    (c.factions || []).forEach(f => { if (!MAP.FACTIONS[f]) { errs.push('氏族 ' + c.id + ' 的势力不存在：' + f); } });
+  });
+  ok.push('氏族 ' + CLANS.length + ' 族，涉将佐 ' + touched.size + ' 人（共 ' + members + ' 人次）');
+  if (CLANS.length < 30) { warn.push('氏族不足 30 族（实 ' + CLANS.length + '）'); }
+
+  /* —— 户口与氏族：Engine 侧之实算 —— */
+  const Pop = sandbox.Population, CL = sandbox.Clans;
+  if (!Pop || !CL) { errs.push('缺户口（src/core/population.js）或氏族（src/core/clans.js）之算'); }
+  else {
+    const s5 = Eng.newGame({ lord: lordKeys[0], seed: 4242 });
+    const tl5 = Eng.popTotal(s5, s5.player);
+    const cities5 = Eng.countCities(s5, s5.player);
+    const all5 = Object.keys(s5.cities).reduce((n, k) => n + s5.cities[k].pop, 0);
+    if (!(tl5 > 0)) { errs.push('户口：开局户口不为正（' + tl5 + '）'); }
+    if (!(all5 > tl5)) { errs.push('户口：全图户口应多于本势力（全图 ' + all5 + '／我 ' + tl5 + '）'); }
+    if (Eng.popTotal(s5, s5.player) !== tl5) { errs.push('户口：popTotal 非幂等'); }
+    let ticked = 0;
+    for (let i = 0; i < 6; i++) { Object.keys(s5.cities).forEach(k => { Pop.tick(s5, s5.cities[k]); ticked++; }); }
+    if (Eng.popTotal(s5, s5.player) <= 0) { errs.push('户口：推演六季而户口尽失'); }
+    /* 征兵耗户口：反复征发必减 */
+    const k0 = Object.keys(s5.cities).filter(k => s5.cities[k].owner === s5.player)[0];
+    const before = s5.cities[k0].pop;
+    const r0 = Eng.recruit(s5, k0, 'inf', null);
+    if (r0 && r0.ok && !(s5.cities[k0].pop < before)) { errs.push('户口：征兵不减户口'); }
+    /* 休养生息：贡金而户口增 */
+    const k1 = Object.keys(s5.cities).filter(k => s5.cities[k].owner === s5.player && k !== k0)[0] || k0;
+    const rb = s5.cities[k1].pop;
+    const rest = Eng.restCity(s5, k1);
+    if (rest && rest.ok && !(s5.cities[k1].pop > rb)) { errs.push('户口：休养生息不增户口'); }
+    ok.push('户口：开局 ' + Math.round(all5 * 10) / 10 + ' 万口（我 ' + Math.round(tl5 * 10) / 10 + ' 万口，' + cities5 +
+      ' 城），征兵减、休养增、推演六季不失');
+
+    /* 氏族：一局之内可有在朝／可辟者，四事各有其效 */
+    const myClans = Eng.clansOf(s5);
+    if (!Array.isArray(myClans)) { errs.push('氏族：clansOf 非数组'); }
+    const one = myClans[0];
+    if (one) {
+      if (one.members.length < 2) { errs.push('氏族：本势力所关之族无成员'); }
+      let acted = 0;
+      ['marry', 'recommend', 'appoint', 'suppress'].forEach(a => {
+        const info = Eng.clanActInfo(s5, one.id, a);
+        if (!info || typeof info.ok !== 'boolean') { errs.push('氏族：' + a + ' 之事无判'); return; }
+        if (info.ok) { const r = Eng.clanDo(s5, one.id, a); if (!r || !r.ok) { errs.push('氏族：' + a + ' 可行而未成'); } else { acted++; } }
+      });
+      const back = Eng.clansOf(s5).filter(c => c.id === one.id)[0];
+      if (back && acted && back.support === one.support && acted >= 2) {
+        warn.push('氏族：四事之后向背未见变动（' + one.id + '）');
+      }
+      ok.push('氏族：本局势所关 ' + myClans.length + ' 族，四事试行 ' + acted + ' 事');
+    } else { warn.push('氏族：' + lordKeys[0] + ' 之局无所关之族'); }
+  }
+}
 
 /* —— 剧情 —— */
 const ST = Object.assign({}, sandbox.STORIES, sandbox.STORIES_PART1, sandbox.STORIES_PART2,

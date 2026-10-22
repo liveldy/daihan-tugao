@@ -77,8 +77,77 @@
     return idx <= done(lordKey, sid);
   }
 
+  /* 一局之中「非无定式」之关数：末关为开放型（无目标，唯待一统），余关皆有定志 */
+  function nonOpenCount(lordKey, sid) {
+    var C = root.Campaign;
+    var sc = C ? C.scenarioOf(lordKey, sid) : null;
+    if (!sc) { return 0; }
+    return sc.stages.filter(function (s) { return !(s.goal && s.goal.open); }).length;
+  }
+
+  /* 常规通关：该局之「非无定式」诸关皆克（末关开放型不在其列） */
+  function scenarioNormalClear(lordKey, sid) {
+    var n = nonOpenCount(lordKey, sid);
+    return n > 0 && done(lordKey, sid) >= n;
+  }
+
+  /* 完全通关：该局之诸关皆克，含末关开放型（须一统方成） */
+  function scenarioComplete(lordKey, sid) {
+    var C = root.Campaign;
+    var sc = C ? C.scenarioOf(lordKey, sid) : null;
+    if (!sc) { return false; }
+    return done(lordKey, sid) >= sc.stages.length;
+  }
+
+  /* 一君主之进展：常规通关（所有非无定式之关皆克）／完全通关（所有关卡皆克） */
+  function lordStatus(lordKey) {
+    var C = root.Campaign;
+    if (!C) { return { normal: false, complete: false, done: 0, total: 0, nonOpen: 0, doneNonOpen: 0, scenarios: 0, cleared: 0 }; }
+    var list = C.scenariosOf(lordKey);
+    var total = 0, nonOpen = 0, doneNonOpen = 0, doneAll = 0, cleared = 0, full = 0;
+    list.forEach(function (sc) {
+      var n = nonOpenCount(lordKey, sc.id);
+      var d = done(lordKey, sc.id);
+      total += sc.stages.length;
+      nonOpen += n;
+      doneNonOpen += Math.min(d, n);
+      doneAll += Math.min(d, sc.stages.length);
+      if (n > 0 && d >= n) { cleared++; }
+      if (d >= sc.stages.length) { full++; }
+    });
+    return {
+      lord: lordKey, normal: nonOpen > 0 && doneNonOpen >= nonOpen, complete: total > 0 && doneAll >= total,
+      done: doneAll, total: total, nonOpen: nonOpen, doneNonOpen: doneNonOpen,
+      scenarios: list.length, cleared: cleared, full: full
+    };
+  }
+
+  /* 通关之标识（一短语），供择主界面与主页面显示 */
+  function lordMark(lordKey) {
+    var s = lordStatus(lordKey);
+    if (s.complete) { return '完全通关'; }
+    if (s.normal) { return '常规通关'; }
+    if (s.done) { return '已克 ' + s.done + '／' + s.total + ' 关'; }
+    return '';
+  }
+
+  /* 常规通关之君主（兵书志略之门以此为准） */
+  function normalLords() {
+    var FD = root.FACTIONS_DATA || { LORDS: {} };
+    return Object.keys(FD.LORDS).filter(function (k) { return lordStatus(k).normal; });
+  }
+
+  function completeLords() {
+    var FD = root.FACTIONS_DATA || { LORDS: {} };
+    return Object.keys(FD.LORDS).filter(function (k) { return lordStatus(k).complete; });
+  }
+
+  /* 兵书志略之启：至少常规通关三名君主 */
+  var WIKI_GATE = 3;
+  function wikiOpen() { return normalLords().length >= WIKI_GATE; }
+
   /* 剧本是否已开：首局恒开，其本传之局（与君主默认之年相符者）亦恒开，
-   * 余者前局全克方开 */
+   * 余者前局「常规通关」（其非无定式诸关皆克；末关开放型不必克）方开 */
   function scenarioOpen(lordKey, sid) {
     var C = root.Campaign;
     if (!C) { return true; }
@@ -89,7 +158,7 @@
     var def = C.defaultScenario(lordKey);
     if (def && def.id === sid) { return true; }
     var prev = list[i - 1];
-    return done(lordKey, prev.id) >= prev.stages.length;
+    return scenarioNormalClear(lordKey, prev.id);
   }
 
   /* 全局或某君主之进展：已克之关 / 关卡总数 */
@@ -149,12 +218,21 @@
 
   root.PROGRESS = {
     KEY: KEY,
+    WIKI_GATE: WIKI_GATE,
     done: done,
     mark: mark,
     touch: touch,
     last: last,
     stageOpen: stageOpen,
     scenarioOpen: scenarioOpen,
+    nonOpenCount: nonOpenCount,
+    scenarioNormalClear: scenarioNormalClear,
+    scenarioComplete: scenarioComplete,
+    lordStatus: lordStatus,
+    lordMark: lordMark,
+    normalLords: normalLords,
+    completeLords: completeLords,
+    wikiOpen: wikiOpen,
     tally: tally,
     lordTally: lordTally,
     reset: reset,

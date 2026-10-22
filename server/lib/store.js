@@ -107,13 +107,19 @@ Store.prototype.revoke = function (token) {
   return false;
 };
 
-/* 在线会话：以最近之动作计时（逾 idleMs 者视为已下线） */
-Store.prototype.active = function (idleMs) {
+/* 在线会话：以最近之动作计时（逾 idleMs 者视为已下线）。
+ * opts.excludeAdmins 为真时不计管理员之会话——管理员正在施行更新，其自身之会话
+ * 不当算作「在局之客」，否则更新白等，甚至将其强踢。 */
+Store.prototype.active = function (idleMs, opts) {
+  opts = opts || {};
   const now = Date.now();
   const out = [];
   Object.keys(this.tokens).forEach(t => {
     const s = this.tokens[t];
-    if (now - (s.lastSeen || 0) <= idleMs) { out.push({ token: t, user: s.user, idle: now - (s.lastSeen || 0) }); }
+    if (now - (s.lastSeen || 0) > idleMs) { return; }
+    const admin = !!((this.get(s.user) || {}).admin);
+    if (opts.excludeAdmins && admin) { return; }
+    out.push({ token: t, user: s.user, idle: now - (s.lastSeen || 0), admin: admin });
   });
   return out;
 };

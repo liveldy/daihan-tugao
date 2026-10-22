@@ -23,7 +23,7 @@ window.DEV = {
           ],
           list: [
             "index.html —— 主页面（承天受命／演武教战）与对局界面",
-            "wiki.html —— 兵书志略（玩法；本志十二门一百零一条，页面另有「人物志」一串，由武将数据自动编次）",
+            "wiki.html —— 兵书志略（玩法；今十四门，条目数由页面运行时算；页面另有「人物志」一串，由武将数据自动编次）",
             "dev.html —— 匠作志略（本页，制作与实现）"
           ],
           note: "三页互达：主页面「兵书志略」入口通 wiki.html；wiki 页顶栏有「匠作志略」一链通本页；本页顶栏有「兵书志略」与「返回游戏」。",
@@ -674,7 +674,7 @@ window.DEV = {
             "朝局分三处：数据在 src/data/politics_1.js（window.POLITICS），实法在 src/core/politics.js（window.Politics），通口在 src/core/engine.js 之 Engine.council／setHeir／politicsStatus／courtTopics／heirCandidates／pendingPolitics／resolvePolitics。",
             "分工之由与故事线同：数据可分册（今为分册一），改其数而不动其法；politics.js 不含 DOM 依赖，故可在 Node 下推演，tools/validate.js 遂能逐君四十回合演其政争。",
             "状态挂于 st.court：{ strife, legit, heir, councils, lastCouncil, topicAt, topics, fired, pending, history }。Engine.newGame 调 Politics.init(st) 立之；载入次序见「脚本加载次序」一节。",
-            "「实现对照」一门逐兵书志略之旧十门列其实现位置；本门与「正式版之实现」一门，则详新增二门之内里。"
+            "「实现对照」一门逐兵书志略之旧十门列其实现位置；本门、「正式版之实现」一门与「一·二版之新增」一门，则详其后诸门之内里。"
           ],
           list: [
             "src/data/politics_1.js —— window.POLITICS = { events, topics, heirs }",
@@ -1178,6 +1178,245 @@ window.DEV = {
           ],
           note: "不引前端框架：本作无构建、纯静态三页、vanilla 一万余行；换框架须重写并添构建链，风险与收益不成比例。以 CSS 分端之式加少量触控规则，已足敷手机与平板之用。",
           src: "assets/style.css · 分端之式；index.html／wiki.html／dev.html · meta"
+        }
+      ]
+    },
+
+    /* ============================ 十、一·二版之新增 ============================ */
+    {
+      id: "impl-12",
+      name: "一·二版之新增",
+      entries: [
+        {
+          id: "pop-module",
+          title: "户口之模块与数据",
+          body: [
+            "户口之制立于 src/core/population.js，挂于 root.Population。户口不另立数据册：其基数由城池之岁入（金、粮）与等第当场推之，故舆图数据不必改一字。户口一律以「万口」计（三十七万口即 37.0）。",
+            "本模块只读 window.MAP 与 window.Rules，不含 DOM 依赖，故可在 Node 下推演——tools/validate.js 与 tools/sim.js 皆据之演其户口。",
+            "四常数与其取值之义：PER_HP 为一兵所当之户口（1/250；一兵约当四十口之家，故二十五兵为万口，兵力一百一十之部曲即零点四四万口）；LEVY 为征发之倍（2，调发在途、老弱不任者亦耗，故倍之）；REST_GOLD 为休养生息之费（200）；REST_CD 为其冷却（4 回合）。",
+            "KIND_W 为城池等第之户口倍率：都城 2.2、州治 1.7、重镇 1.3、港口 1.3、县城 0.9、关隘 0.4——大邑人稠，关隘民稀。"
+          ],
+          list: [
+            "base(cityId 或城对象) —— 以岁入与该城等第推其基数：(gold + food) ÷ 10 × KIND_W，取一位小数；无此城者作 10",
+            "of(st, cityId) —— 该城今之户口；pop 未立者以基数当之",
+            "total(st, faction) —— 一势力所有城池户口之和，供顶栏与推演之总结",
+            "popFactor(st, c) —— 户口之效：0.75 + 0.25 × (今户口 ÷ 基数)，取 0.55—1.15，折入岁入；免得一城之户口牵动全局",
+            "rate(st, c) —— 每季自然之增减：0.020 × (民心 ÷ 100) − 0.004 − 骚动 ÷ 1500；新遭兵燹（siegeTurn 当季）再减 0.01；取 −0.03—0.025",
+            "tick(st, c) —— 每季之变，归其 { delta, rate }；户口之上限为基数之三倍（土地所出有尽，非可无限孳生），下限 0.2，并记 popBase",
+            "levy(type) —— 征兵所耗之户口：Rules.UNITS[type].hp × PER_HP × LEVY，取一位小数",
+            "canRecruit(st, cityId, type) —— 户口是否足以征募：须留三倍之数（今户口 ≥ 所耗 × 3），否则报「户口不足（今某万口，须某万口以上）」而不许征",
+            "spend(st, cityId, type) —— 实耗户口：扣户口、民心 −1、骚动 +2；抽丁过半（户口降至基数之半以下而先在半以上）则民心再 −4、骚动再 +8，并归 heavy 为真",
+            "restInfo(st, cityId) —— 休养生息之判：非我之城、金帛不足、未满冷却者各报其由，并预告所增之户口与所费",
+            "gain(st, cityId) —— 休养所得：基数 × 0.06 × (1 − 今户口 ÷ 基数之三倍)，至少 0.4；已近三倍（2.9 倍以上）则只 0.2",
+            "rest(st, cityId) —— 行之：费金 200，户口增 gain、民心 +5、骚动 −12，记 lastRest 并写战报一条",
+            "num(v) —— 户口之文：不及一百万口者带一位小数，逾则只称万"
+          ],
+          note: "户口之要在一「耗」字：征募耗之，大举征发耗之，兵燹亦耗之；惟民心与休养生息可复。此制不改兵制之数，只使兵源有本。",
+          src: "src/core/population.js"
+        },
+        {
+          id: "pop-engine",
+          title: "户口挂于引擎何处",
+          body: [
+            "newGame：每城加三键——pop（户口）、popBase（基数）、lastRest（上次休养之回合，初值 −99）；pop 与 popBase 皆取 Population.base(c)。",
+            "startTurn：逐城先调 Population.tick(st, c) 得本季之消长，再以 Population.popFactor 折其岁入——该城金粮各乘此数，故户口盛则租赋足，户口凋敝则租赋不登。",
+            "本回合之出入另记于势力之上（f.income），供顶栏示其变动：{ turn, gold, food, upkeep, goldNet, foodNet, pop, popDelta, drag, clans }——gold／food 为入账之数，upkeep 为军粮之耗，goldNet／foodNet 为净变，pop 为今户口，popDelta 为本季户口之增损（无户口之制时以户口之差当之），drag 为党争之折损，clans 为世族向背之乘数（百分数，并附其言辞）。",
+            "recruit：先 Population.canRecruit 而后扣金；既成则 Population.spend，户口之耗与所征之兵同记一笔战报；抽丁过半者（heavy）另记「大举征发，户口骤减，田野稍稍荒芜」一笔，只记于玩家一方。",
+            "Engine 新增四口，皆一行转口：restCity(st, cityId)、restInfo(st, cityId)、popOf(st, cityId)、popTotal(st, faction)；户口之制未载时各报「户口之制未立」或返零，不阻其行。"
+          ],
+          table: {
+            head: ["兵种", "id", "兵力", "所耗户口（万口）"],
+            rows: [
+              ["郡国兵", "inf", "110", "0.9"],
+              ["长矛兵", "spear", "115", "0.9"],
+              ["弓手", "archer", "90", "0.7"],
+              ["大戟士", "pike", "135", "1.1"],
+              ["连弩士", "crossbow", "95", "0.8"],
+              ["亲卫", "guard", "155", "1.2"],
+              ["轻骑", "cav", "110", "0.9"],
+              ["甲骑", "heavycav", "145", "1.2"],
+              ["骑射", "cavarcher", "100", "0.8"],
+              ["攻城器械", "siege", "125", "1.0"],
+              ["楼船", "navy", "145", "1.2"],
+              ["辎重车", "transport", "90", "0.7"],
+              ["蛮骑", "barbcav", "120", "1.0"],
+              ["象兵", "elephant", "175", "1.4"]
+            ]
+          },
+          note: "户口见于顶栏（户口一项，悬停见本回合之增损）、城池页（逐城户口、「户口凋敝」之警、征募钮所预告之「户口 −某」与休养生息之钮）及推演之总结。",
+          src: "src/core/engine.js · newGame／startTurn／recruit／户口四口；src/core/rules.js · UNITS"
+        },
+        {
+          id: "clans-module",
+          title: "氏族之模块与数据",
+          body: [
+            "氏族数据分二册：src/data/clans_1.js（window.CLANS_PART1，二十二族，多中原与河北之姓）与 src/data/clans_2.js（window.CLANS_PART2，二十二族，多江东、荆益、交州与汉室诸房），合四十四族，涉将佐一百五十二人。",
+            "一族之字段八：id、name、junwang（郡望）、trait（门风）、desc（始末，逾二百字者校验相警）、src（出处）与 members[]（其族之将佐 id，须实名在册）、factions[]（所附势力，须为真势力）。校验逐项核之：id 不得重、members 不得少于二人且不得重、factions 不得空。",
+            "加载之约：二册在 generals_1..4.js 与 lore.js 之后、stories 之前载入，皆先于 core 之诸脚本；tools/sim.js 之文件清单亦同此序。未载二册则 Clans.all() 得空表，氏族一门自成空门而不报错。",
+            "实法在 src/core/clans.js，挂 root.Clans，不含 DOM 依赖；将佐之册由 Engine.allGenerals() 取之，故 clans.js 须在 engine.js 之前载入。"
+          ],
+          list: [
+            "all() —— 合 CLANS 与 CLANS_PART1..3 之诸族（缺册跳过）",
+            "byId(id)／state(st, id)／support(st, id)／label(v) —— 取族、取其向背之状（0—100）与其辞：倾心相附／亲附／观望／貌合神离／离心／仇雠相视",
+            "init(st) —— 于 newGame 立 st.clans：逐族 { id, support: 55, at: {}, recruited: 0, lastTurn }",
+            "touches(st, c) —— 某族是否有涉于吾：其族附于吾之势力，或其在朝、在野之士居吾疆",
+            "relevant(st) —— 本局有涉之族，向背高者列前",
+            "serving(st, c) —— 其族在吾幕府者（含在朝、在军），按忠心降序",
+            "recruitable(st, c) —— 其族在野可辟者，按影响降序（氏族之荐所据）",
+            "members(st, c) —— 其族之在册者，兼记其在本局之有无、归属与忠心",
+            "tick(st) —— 每季之消长：名分正则士族归心，朋党盛则门第自固，向背既极则自趋中平；其族在朝者之忠心亦随之",
+            "bonuses(st) —— 向背之效：岁入之乘数与名分、党争之增减，供 Engine 取用",
+            "actInfo(st, id, act)／act(st, id, act) —— 四事之判与行（判其费、冷却与可否，行者扣金威望、记其回合、改向背与忠心）",
+            "ACTS —— 四事之名、费、冷却与一句说明"
+          ],
+          table: {
+            head: ["事", "key", "费", "冷却", "效"],
+            rows: [
+              ["联姻", "marry", "金 300、威望 8", "4 回合", "向背 +18；其族在朝者忠心 +8"],
+              ["征辟其子弟", "recommend", "金 180", "3 回合", "向背 +10，并辟其族在野之贤者入幕（忠心 72，不循乡邦之限）；其族无人可辟则只向背 +8"],
+              ["任用其族", "appoint", "金 120", "3 回合", "向背 +10；在朝者忠心 +6；党争 +2"],
+              ["裁抑强宗", "suppress", "威望 5", "4 回合", "向背 −18；在朝者忠心 −6；党争 −8；我方诸城民心 +2、骚动 −4"]
+            ]
+          },
+          note: "消长与效之数：tick 每季按名分（不低于六十五则加半点，否则减零点二）与党争（不低于五十五则减零点四，否则加零点二五）移其向背，向背逾七十者自减 0.35、不及三十者自增 0.35；有涉之族逾三而均值不低于七十，则党争加半点。bonuses 则向背不低于七十之族各使金粮增百分之二，不及或等于二十五者金减百分之二；均值不低于七十则名分 +0.4，不高于三十则党争 +0.8；乘数取 0.8—1.2 之间。",
+          src: "src/data/clans_1.js；src/data/clans_2.js；src/core/clans.js"
+        },
+        {
+          id: "clans-engine",
+          title: "氏族挂于引擎何处",
+          body: [
+            "newGame：朝局既立之后调 Clans.init(st)，立 st.clans 之初值（向背皆五十五）；故「朝局」与「氏族」二制同挂于一局之初。",
+            "startTurn 之末：于 Politics.tick 之后、在野游历之前调 Clans.tick(st)，作向背之消长、其在朝者之忠心与朋党之增减。",
+            "岁入：Clans.bonuses(st) 只施于玩家一方，于党争之折损 drag 之后，金粮各乘其数（党争与世族二折相乘，故内外皆耗则岁入更薄）；其言辞另入 f.income.clans 以备考。",
+            "Engine 新增三口，皆一行转口：clansOf(st)、clanDo(st, id, action)、clanActInfo(st, id, action)；氏族之制未载时前者返空表，后二者报「氏族之制未立」。",
+            "clansOf 所出者，逐族含其族之数据（name、junwang、trait、desc、src、factions）、向背之数与辞、在吾幕府者、在野可辟者与在册之众，供庙堂之「氏族」一卡直取。"
+          ],
+          note: "氏族不自动改舆图与部曲，其效只走岁入（乘数）、朝局（名分、党争）与臣心三条；故不强加于引擎之诸判定，只在 Engine 一侧折之。",
+          src: "src/core/engine.js · newGame／startTurn／clansOf／clanDo／clanActInfo；src/core/clans.js · tick／bonuses"
+        },
+        {
+          id: "recruit-rule",
+          title: "征辟之制",
+          body: [
+            "汉末征辟，本有门第与乡里之限：非其乡里之人，虽怀金帛亦不能致之。故 engine.js 之 recruitRule(st, gid) 逐事判之，合则辟，不合则报其由。",
+            "一、须其人无主而在野：已殁、在军（有部曲者）、已为我之臣、为他人效力者，皆不在其列。",
+            "二、一方之主不可辟：def.roles 含 lord 者（天子与诸方之主）不可为臣，故汉献帝亦不可征辟。",
+            "三、本朝旧人（def.faction 即玩家势力）可辟；亡国之士亦可（其国曾有其城而今已亡——st.factions[f].everAlive 为真、alive 为假），惟影响五者名重天下、耻为人下，不在其列。",
+            "四、须其乡里在吾疆，或与我同州（playerZhous(st) 取我所有之州）：二者有一则可辟；皆不合则报「其人寄居某城（某势力），非我州郡所能辟」；乡里无所考者报「无从征辟」。",
+            "在野之人皆各归其乡：newGame 之末以 homeCity(st, def) 定 g.city——未立之国者以其本据为乡里（晋人归洛阳、蜀人归成都）；故其可辟与否，一望而知。"
+          ],
+          list: [
+            "recruitable(st) —— 在野全表，逐人含 id／name／zi／bio／impact／stats／roles／faction／home／open／why／cost（费金 80 + 影响 × 60，无影响之数者以 120 计）；按影响降序，同者按名",
+            "recruitGeneral(st, gid) —— 依 recruitRule 之判而行：扣金、改其归属为我、忠心 70，并写战报（含其可辟之由）",
+            "diplomacy('edictCall') —— 天子诏书之征辟，改用 recruitable().filter(open) 取第一人（须国策为 zhaoshu、威望不低于十五、六回合之内不重下）",
+            "界面：「人物」页分「可辟」（列至多二十人）与「不可辟者（何以不可）」两处，后者收于 details.who-shut 之中，各附其由；征募与征辟之钮皆以 open 定其禁用"
+          ],
+          note: "氏族之荐（Clans.act 之 recommend）自成一途：得其荐者入幕而不循乡邦之限，此汉末「辟召由门第」之实。",
+          src: "src/core/engine.js · recruitRule／playerZhous／recruitable／recruitGeneral／diplomacy (edictCall)；src/ui/ui.js · renderWho"
+        },
+        {
+          id: "lord-fall",
+          title: "君主阵亡即败",
+          body: [
+            "汉末之世，君在则国在。killUnit 于将佐既殁或被获之后，若其人为 st.lordGeneral（君主本人之将佐 id，newGame 时按君主之名自武将表求出），则径调 lordDown(st, kind, killer)：killer 在则为 captured（被获），否则为 slain（阵殁）。",
+            "lordDown：记 st.lordDown = { kind, general, by, turn }，写战报一条（「为某所擒，社稷倾覆」／「殁于阵中，社稷倾覆」），置 st.result = { win: false, faction, reason: 'lord', how, by }，并令 st.phase = 'over'；既终则不再改（已有 lordDown 或 result 者即返）。",
+            "checkDefeat：于「城尽而无部曲」之前先判「君主已殁或见擒」——st.lordGeneral 之将 status 为 dead，或其 owner 已非玩家势力，即调 lordDown 而终；城尽之败则 reason 改为 'ruin'，与「君主之殁」判然两事。",
+            "showEnding：reason 为 'lord' 者另标「君主殒命」（眉题），其案语冠以「君在则国在，此局已终，虽城郭部曲犹存亦不复振」。",
+            "推演之应：tools/sim.js 因之不再遣君主陷阵（见「本轮之校」一条）；tools/validate.js 之逐君推演未设此防，故其「覆灭」之报（若有）兼含君主阵殁之局。"
+          ],
+          note: "此制使君主为一局之根：不待城尽部曲尽而后败。故择主界面之难度与故事线之败局文案，皆须与之相应。",
+          src: "src/core/engine.js · killUnit／lordDown／checkDefeat；src/ui/ui.js · showEnding"
+        },
+        {
+          id: "map-zoom",
+          title: "舆图之缩放与推移",
+          body: [
+            "舆图之视图只一对象管之：{ zoom, pan: { x, y } }。zoom 为一即满图（缩放至适），至多三倍（ZOOM_MIN 一、ZOOM_MAX 三）；pan 为画布内之偏移（像素）。",
+            "绘与点皆先规整此对象：Render.viewOf(view) 取 { z, x, y }（z 不在一至六之间者取一）；Render.clampPan(canvas, z, pan) 限其偏移于 −(z − 1) × 画布宽高之内，不使图外露白。",
+            "draw(ctx, st, view)：先于满图坐标清屏，若 z 非一或有偏移，则以 setTransform(z, 0, 0, z, x, y) 施一变换——布局仍按满图算（layout 不变），只在绘时施之，故所画即所点。",
+            "hit(e, canvas, view)：先按 canvas.width ÷ rect.width 折回画布内部像素，再减偏移、除以倍数，方交 tileAtPixel 取格。pixelAt(e, canvas) 则返内部像素与其比例 k，供推移之用。",
+            "界面侧之机关在 src/ui/ui.js：applyZoom(z, fx, fy) 以 (fx, fy) 为心缩放（缺则取画布中心），缩放既毕行 clampPan 并切换 #map.zoomed 之类；zoomBy(delta, e) 以指针处为心增减；zoomFit() 复于满图；syncTools() 依倍数更新 −／＋／⤢ 三钮之禁用、倍数之标（100%）与「取消 ✕」之显隐。"
+          ],
+          list: [
+            "滚轮：wheel 之监听加 { passive: false } 并 preventDefault，故滚轮只缩舆图、不缩整页；上滚增二成五、下滚减二成五（皆按当时倍数乘之）",
+            "双击（触屏之双点亦可）：满图与二倍互转",
+            "键位：＋ 或 =（zoomBy 0.5）、− 或 _（zoomBy −0.5）、0（zoomFit）",
+            "拖动：图既放大则以拖动为推移（pointermove 逾五像素方作拖动，触控者 preventDefault），并逐次 clampPan",
+            "触控：满图之时不加 zoomed 之类，窄屏仍由原生滚动推移；既放大则加 #map.zoomed 之 touch-action: none——不如此，拖图成了整页放大与滚动，手一按而全屏皆动",
+            "舆图之器：舆图右下 .stage-foot 之内，−、＋、⤢、取消 ✕ 四钮，中夹倍数之标；「取消 ✕」随选择与敌情之有无而显隐"
+          ],
+          note: "缩放不改命中：点击恒按 canvas.width ÷ rect.width 折算，再减偏移、除以倍数；故推移之后命中仍准。",
+          src: "src/ui/render.js · viewOf／clampPan／draw／hit／pixelAt；src/ui/ui.js · applyZoom／zoomBy／zoomFit／syncTools；assets/style.css · #map.zoomed"
+        },
+        {
+          id: "cancel-ways",
+          title: "取消选择之四法",
+          body: [
+            "舆图之选择一有，则「可往」「可击」「可攻」诸标随之。既欲罢之，电脑四法、触控二法，凡六门，而皆归于一。"
+          ],
+          list: [
+            "再点该部曲：onTile 遇 view.selected.id 与所点之部曲相同者，即 cancelAll（此法师出「以同一动作反复」之例）",
+            "点舆图空白处：有选择而点及空地（或不可往之格）者，取消并报地形之名",
+            "右键：contextmenu 之监听 preventDefault 而后 cancelAll（桌面专用）",
+            "Esc：叠层既开则作点其底部主按钮；否则图既放大而无选择者先复位满图，再次方取消选择",
+            "触控之长按：pointerdown 起 520 毫秒之计时，pointerup／pointermove 逾五像素／pointercancel 皆止之；既发则置 suppressClick，免得随至之 click 又选中一物",
+            "「取消 ✕」钮：在舆图之器之中，凡有选择或敌情则显，按之即 cancelAll"
+          ],
+          note: "机关二事：deselect(quiet) 清 selected／reachable／targets／cityTargets；cancelAll(msg) 兼清敌情之屏、报一行提示、重绘，并返「原有无可取消者」之真假（供 toast 判）。HINT_IDLE 之一行，即闲置之时常驻之提示，其文并载取消诸法与环色、缩放之属。题曰「四法」者，就电脑而言；触控另备长按与「取消 ✕」二法。",
+          src: "src/ui/ui.js · deselect／cancelAll／onTile／wire（contextmenu／pointerdown／keydown）；src/ui/render.js · hit"
+        },
+        {
+          id: "unit-fx",
+          title: "舆图特效",
+          body: [
+            "舆图之上，一望须能辨三事：孰为我、孰为友、孰为敌；孰已行动、孰尚待命。故 drawUnit 于画军之前先求其「等」。"
+          ],
+          list: [
+            "Render.unitRank(st, u) —— 分三等：u.faction 即玩家者为 mine；其势力与玩家未开战（f.war 无我）者为 ally；余者为 foe",
+            "RANK_COLOR = { mine: '#2f6b4f', ally: '#7c8288', foe: '#a8322a' } —— 环色：我绿、友灰、敌赤；选中者环易为 #f7e6b8（素纸之金）",
+            "已行动者（acted，只我方）：通体取 alpha 0.55（半淡），环改灰虚线（setLineDash [4, 3]）——「已毕」",
+            "未行动之我方：于右上角画金丸一枚（#f7e6b8，半径 3.2，位在 px + r × 0.82、py − 3 − r × 0.82，外描深边）——「待命」"
+          ],
+          note: "环色与金丸皆随首绘而成，不改数据、不加计次；头像、兵种图、势力旗依次取图（见「图象资源」一节），无图者以势力色圆徽加其名之首字当之。",
+          src: "src/ui/render.js · unitRank／RANK_COLOR／drawUnit"
+        },
+        {
+          id: "clear-marks",
+          title: "通关之识与二志之门",
+          body: [
+            "「通关」有二义，此前含混为一；本轮于 src/data/progress.js 立二名：常规通关（该局之「有定志」诸关皆克，末关开放型不在其数）与完全通关（并末关亦克，即一统）。",
+            "src/ui/gate.js（新，挂 root.Gate）司二志之门屏：Gate.screen(opts) 于 #wikiMain 之内造 .gate（眉题、题、由、今况数行、案语、归路「回主页面」），隐 #wikiNav，改 #wikiTitle 与 document.title 并写 #wikiCount；Gate.wiki() 门未启者列「今已常规通关 n 位，尚须 m 位」与「近日之战」（各君主以其 lordMark 与定志之关数），门既启则 Roster.attach() 与 Reader.mount(window.WIKI)；Gate.dev() 须正式版且为管理员，ACCOUNT 未载者报「今未载账号之制」，频道非 release 者报「今为预览版（服务端未应）」，登录而非管理员者报其名号。二页各于脚本之末一呼：wiki.html 呼 Gate.wiki()，dev.html 呼 Gate.dev()。",
+            "主页面则不然：顶栏「匠作志略」一链（#devLink）本 hidden，由 UI.applyDevLink() 于 ACCOUNT.probe() 之后（及 onChange 之时）按 ACCOUNT.state() 之 admin（或 account.admin）显隐，非管理员者不见。",
+            "「预览版无账号之制，故匠作志略在预览版一概不启」之实情：GitHub Pages 之静态页无可问之服务端，ACCOUNT 之频道自探定为 preview，Gate.dev() 遂径报「今为预览版（服务端未应），故不启」；本地双击 dev.html 亦然。欲阅匠作志略，须起自建服务端（server/server.js），并以首位注册之管理员登录。"
+          ],
+          list: [
+            "nonOpenCount(lordKey, sid) —— 一局之中「非无定式」之关数，逐关看 goal.open",
+            "scenarioNormalClear(lordKey, sid) —— 该局定志之关皆克（至少一关且已克数不少于定志之关数）",
+            "scenarioComplete(lordKey, sid) —— 该局诸关皆克（含末关开放型）",
+            "lordStatus(lordKey) —— 汇一君主诸局之数：{ normal, complete, done, total, nonOpen, doneNonOpen, scenarios, cleared, full }",
+            "lordMark(lordKey) —— 一短语之识：完全通关／常规通关／已克 x／y 关",
+            "normalLords()／completeLords() —— 二类君主之名列",
+            "WIKI_GATE = 3、wikiOpen() —— 兵书志略之门：常规通关三名君主方启",
+            "scenarioOpen(lordKey, sid) 改以「前局常规通关」为准（首局与本传之局恒开）；旧法取「前局诸关全克」（含末关开放型）为断，其局既含无定式之末关，则前局几不可越"
+          ],
+          note: "界面之应：君主钮与剧本页签各缀 .lm（常规通关）／.lm.full（完全通关）之识，剧本页签另书「定志 N」与「未启」；gateState() 由 PROGRESS.normalLords().length 与 WIKI_GATE 算出 { open, have, need, full }，refreshGates() 写 #wikiGate 之数、给 #btnWiki 缀 locked 类并改其 title、写 #titleProgress「已克 x／y 关　常规通关 n 君」；UI.boot() 即调一次，ACCOUNT 之 probe 与 onChange 之后各再调一次。兵书志略之门不以账号为凭，而以「常规通关三名君主」为凭——此志之文，凡玩家皆当得而读之；匠作志略「仅管理员可见」一句，页上亦明书之。",
+          src: "src/data/progress.js · 通关诸口；src/ui/ui.js · buildTitle／renderCampaign／showStages／gateState／refreshGates／applyDevLink；src/ui/gate.js · Gate.wiki／Gate.dev／Gate.screen；wiki.html；dev.html"
+        },
+        {
+          id: "verify-12",
+          title: "本轮之校",
+          body: [
+            "tools/validate.js 于「典籍」段之后新增一段，先校氏族之数据契，再以 Engine 之实数校户口与氏族之算。"
+          ],
+          list: [
+            "氏族之契：合 CLANS 与 CLANS_PART1..3；id 须小写字母起且不重；name／junwang／trait／desc／src 五字段皆须有；desc 逾二百字者相警；members 至少二人、不得重、须为在册武将；factions 不得空、须为真势力；不足三十族者相警。所报之行为「氏族 44 族，涉将佐 152 人（共 152 人次）」",
+            "户口之算：以首位君主开局，核户口为正、全图多于本势力、popTotal 幂等；逐城连推六季而户口不失；征兵而户口减；休养生息（费金）而户口增。所报之行为「户口：开局 1369.1 万口（我 53.9 万口，4 城），征兵减、休养增、推演六季不失」",
+            "氏族之算：clansOf 须为数组、本局所关之族须有成员；四事各有其判（actInfo 之 ok 为布尔），可行者行之必成；行二事以上而向背仍无变者相警。所报之行为「氏族：本局势所关 3 族，四事试行 1 事」",
+            "tools/sim.js 之改动：文件清单增 src/data/clans_1.js／clans_2.js 与 src/core/population.js／src/core/clans.js（次第与 index.html 同）；因君主阵亡即败，简易玩家不遣君主陷阵——凡 u.general 即 st.lordGeneral 者，置 acted 为真、moveLeft 为零而按兵不动；总结多报户口与败因（结局之 reason 与 how）",
+            "三具之用法：node tools/validate.js（全量校验，交付前之总闸）、node server/test.js（服务端端到端自检）、node tools/sim.js [君主key] [回合数] [剧本id] [关卡序号]（无头推演，后二者可省）"
+          ],
+          note: "匠作志略不受「不得夹带实现细节」之限（tools/validate.js 之 TECH_IN_WIKI 正则只施于兵书志略），然条目 id 之唯一、表格表头与每行列数之相符，二者同办；本志新增一门之后，node tools/validate.js 所见为「匠作志略 10 门，条目 72」。",
+          src: "tools/validate.js · 氏族与户口段；tools/sim.js；node tools/validate.js"
         }
       ]
     }

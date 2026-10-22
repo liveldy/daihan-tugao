@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#f2ebdd">
 <meta name="mobile-web-app-capable" content="yes">
 <title>兵书志略 · 代汉涂高</title>
-<meta name="description" content="《代汉涂高》兵书志略：兵制、相克、行军、城池、邦交、剧情与胜负，皆按本作实法而书。">
+<meta name="description" content="《代汉涂高》兵书志略：兵制、相克、行军、城池、邦交、朝局、户口与氏族、剧情与胜负，皆按本作实法而书；须常规通关三名君主方启。">
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
@@ -18,7 +18,7 @@
     <div class="spacer"></div>
     <span class="hint" id="wikiCount"></span>
     <span class="ver" id="wikiVer"></span>
-    <a href="dev.html">匠作志略 →</a>
+    <a href="dev.html" id="devLink" hidden>匠作志略 →</a>
     <a href="index.html">← 返回游戏</a>
   </header>
 
@@ -31,16 +31,20 @@
 <script src="src/data/version.js"></script>
 <script src="src/data/map.js"></script>
 <script src="src/data/factions.js"></script>
+<script src="src/data/scenarios_1.js"></script>
+<script src="src/data/scenarios_2.js"></script>
+<script src="src/data/scenarios_3.js"></script>
+<script src="src/data/progress.js"></script>
+<script src="src/data/account.js"></script>
 <script src="src/data/generals_1.js"></script>
 <script src="src/data/generals_2.js"></script>
 <script src="src/data/generals_3.js"></script>
 <script src="src/data/generals_4.js"></script>
+<script src="src/core/campaign.js"></script>
 <script src="src/data/wiki.js"></script>
 <script src="src/ui/roster.js"></script>
 <script src="src/ui/reader.js"></script>
-<script>
-Roster.attach();
-Reader.mount(window.WIKI);
-</script>
+<script src="src/ui/gate.js"></script>
+<script>Gate.wiki();</script>
 </body>
 </html>

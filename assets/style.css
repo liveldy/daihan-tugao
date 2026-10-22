@@ -183,8 +183,12 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .lord-pick { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
 .lord-pick button { padding: 4px 10px; border-radius: 9999px; border: 1px solid var(--line-strong); background: var(--panel); cursor: pointer; font-size: 13px; }
 .lord-pick button[aria-pressed="true"] { background: var(--accent); color: #fff8ef; border-color: var(--accent-deep); }
-.title-foot { display: flex; gap: 10px; align-items: center; padding: 12px 16px; border-top: 1px solid var(--line); background: var(--panel); }
-.title-foot .hint { font-size: 12px; color: var(--muted); flex: 1; }
+/* 底栏（提示 ＋ 舆图之器 ＋ 续战等钮）：一律可折行，长文案不撑破版面 */
+.title-foot { display: flex; flex-wrap: wrap; gap: 10px; row-gap: 8px; align-items: center; padding: 12px 16px; border-top: 1px solid var(--line); background: var(--panel); }
+.title-foot .hint { font-size: 12px; color: var(--muted); flex: 1 1 240px; min-width: 0; }
+/* 「续战·某君·某关」之名可长，独占一行亦可，绝不挤坏同排之钮 */
+#btnContinue { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.title-foot .btn, .title-foot .doc-link, .title-foot .ver { flex: 0 0 auto; }
 
 /* 剧情 */
 .story-wrap { width: min(720px, 100%); max-height: 88vh; display: flex; flex-direction: column; background: var(--card); border: 1px solid var(--line-strong); border-radius: var(--radius); box-shadow: var(--shadow); animation: rise 280ms var(--ease); }
@@ -321,6 +325,14 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .wiki-table td { color: var(--muted); }
 .wiki-top { padding: 12px 16px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 12px; background: color-mix(in srgb, var(--paper) 88%, transparent); }
 .wiki-top a { color: var(--accent-deep); }
+/* 二志之门：门外之人见其门而不见其文 */
+.gate { max-width: 46em; margin: 6vh auto 0; padding: 24px 26px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--card); box-shadow: var(--shadow); }
+.gate h3 { margin: 6px 0 10px; font-size: 22px; font-weight: 500; letter-spacing: .06em; color: var(--accent-deep); }
+.gate .lead { color: var(--muted); font-size: 13.5px; }
+.gate .gate-line { font-size: 13px; color: var(--ink); margin: 0 0 6px; padding-left: 12px; border-left: 2px solid var(--line); }
+.gate .note { font-size: 12.5px; color: var(--faint); margin-top: 10px; }
+.gate .gate-foot { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+.gate .gate-foot a { text-decoration: none; color: var(--accent-deep); }
 /* 制作向之页面（匠作志略）的入口：置于主页面底栏，不夺玩家之目 */
 .doc-link { font-size: 12px; color: var(--muted); text-decoration: none; white-space: nowrap; }
 .doc-link:hover { color: var(--accent-deep); text-decoration: underline; }
@@ -408,6 +420,67 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .maint-wrap .etext { max-width: 46em; }
 .maint-wrap .story-foot { justify-content: center; }
 
+/* ——— 舆图之器：缩放、复位与取消（附于舆图之底栏，末日端亦在目前） ——— */
+.map-tools {
+  display: flex; align-items: center; gap: 6px; margin-left: auto;
+  padding: 4px 6px; border: 1px solid var(--line-strong); border-radius: 9999px;
+  background: color-mix(in srgb, var(--card) 92%, transparent);
+  box-shadow: 0 4px 12px rgb(65 50 39 / .08);
+  flex: none;
+}
+.mtool {
+  display: inline-grid; place-items: center; min-width: 34px; min-height: 34px; padding: 0 8px;
+  border: 1px solid var(--line); border-radius: 9999px; background: var(--card); color: var(--ink);
+  cursor: pointer; font-family: var(--sans); font-size: 14px; line-height: 1;
+}
+.mtool:hover:not([disabled]) { border-color: var(--accent); background: #fff8ef; }
+.mtool[disabled] { opacity: .4; cursor: not-allowed; }
+.mtool.cancel { color: var(--accent-deep); border-color: var(--accent); font-size: 13px; padding: 0 12px; }
+.zoomlab { font-family: var(--mono); font-size: 11.5px; color: var(--muted); min-width: 40px; text-align: center; }
+/* 放大之时，触控不在整页上放大缩小，而在舆图上推移 */
+#map.zoomed { touch-action: none; cursor: grab; }
+#map.zoomed:active { cursor: grabbing; }
+
+/* ——— 顶栏本回合之出入 ——— */
+.res em.delta { font-style: normal; font-family: var(--mono); font-size: 11.5px; margin-left: 2px; }
+.res em.delta.up { color: var(--live); }
+.res em.delta.down { color: var(--accent-deep); }
+.res em.delta.flat { color: var(--faint); }
+
+/* ——— 户口 ——— */
+.pop-line { font-size: 12px; }
+.pop-line.warn { color: var(--accent-deep); }
+
+/* ——— 氏族 ——— */
+.card .clan { border-top: 1px dashed var(--line); padding: 9px 0 4px; }
+.card .clan:first-of-type { border-top: 0; }
+.card .clan .row b { font-size: 14px; font-weight: 500; }
+.card .clan .src { font-size: 11.5px; color: var(--faint); font-family: var(--mono); margin-top: 4px; }
+.card .clan .opts-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.card .clan.warm { border-left: 2px solid var(--live); padding-left: 8px; }
+.card .clan.cold { border-left: 2px solid var(--accent); padding-left: 8px; }
+
+/* ——— 人物：不可辟者之折叠 ——— */
+.who-shut { margin-top: 10px; border-top: 1px dashed var(--line); padding-top: 8px; }
+.who-shut summary { cursor: pointer; font-size: 12.5px; color: var(--muted); }
+.who-shut .card { margin-top: 8px; }
+
+/* ——— 通关之识 ——— */
+.lm {
+  display: inline-block; margin-left: 6px; padding: 0 6px;
+  border: 1px solid var(--live); border-radius: 9999px;
+  font-family: var(--sans); font-size: 11px; color: var(--live); vertical-align: 1px;
+  white-space: nowrap;
+}
+.lm.full { border-color: var(--accent); color: var(--accent-deep); }
+.camp-head .camp-sub .lm-line { font-weight: 500; color: var(--muted); }
+.scen-tab em.lm { display: inline-block; margin-left: 0; justify-self: start; }
+.stage-row .st.open-tag { color: var(--gold); }
+.stage-row .body .goal.open-note { color: var(--muted); }
+/* 兵书志略未启：按钮仍可按（示以缘由），惟明示为锁 */
+.menu-item.locked { opacity: .72; }
+.menu-item.locked b { color: var(--muted); }
+
 /* ——————————————— 分端之式 ———————————————
  * 三端：桌面（>900）／平板（721—900）／手机（≤720）。
  * 一律以视口为壳，壳内自滚：舆图在上、侧栏在下，页签吸顶，
@@ -461,9 +534,14 @@ button, .menu-item, [role="tab"], .stage-row, .scen-tab, .lord-pick button { tou
   .stage { overflow: auto; -webkit-overflow-scrolling: touch; }
   /* 舆图不压成一条：保 760 之宽，指推左右观之 */
   #map { width: 760px; max-width: none; }
-  .stage-foot { padding: 6px 10px; font-size: 12px; }
+  .stage-foot { padding: 6px 10px; font-size: 12px; flex-wrap: wrap; row-gap: 6px; }
+  .stage-foot .map-tools { margin-left: 0; }
+  .mtool { min-width: 40px; min-height: 40px; }
+  .zoomlab { min-width: 44px; }
   /* 窄屏舆图宽于屏，故明示可左右推移 */
   .stage-foot .hint::after { content: "（舆图可左右推移）"; color: var(--faint); }
+  /* 底栏不可吞舆图：提示至多两行，全文仍在悬停之 title 里 */
+  .stage-foot .hint { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .tabs button { min-height: 46px; font-size: 13.5px; }
   .tabpanel { padding: 10px; }
   .tabpanel h3 { font-size: 14.5px; }

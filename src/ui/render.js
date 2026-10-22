@@ -222,7 +222,21 @@
     ctx.restore();
   }
 
-  /* —— 部曲 —— */
+  /* —— 部曲 ——
+   * 舆图之上，一望须能辨三事：孰为我、孰为敌、孰已行动。
+   *   我（金环·绿意）／友（灰环）／敌（赤环）；
+   *   未行动者，右上角一点金丸（「待命」）；已行动者，通体半淡、环作灰虚（「已毕」）。
+   */
+  function unitRank(st, u) {
+    if (!st || !st.factions) { return 'foe'; }
+    if (u.faction === st.player) { return 'mine'; }
+    var f = st.factions[u.faction];
+    if (f && f.war && !f.war[st.player]) { return 'ally'; }
+    return 'foe';
+  }
+
+  var RANK_COLOR = { mine: '#2f6b4f', ally: '#7c8288', foe: '#a8322a' };
+
   function drawUnit(ctx, L, u, st, isSelected) {
     var p = center(L, u.x, u.y);
     var px = p.x, py = p.y;
@@ -231,7 +245,13 @@
     var r = L.s * 0.62;
     var portrait = gen ? artGet('portrait', gen.id) : null;
     var bunting = artGet('unit', u.type);
+    var rank = unitRank(st, u);
+    var acted = !!u.acted && u.faction === st.player;
+    var ring = RANK_COLOR[rank];
     ctx.save();
+
+    /* 已行动者通体半淡，一眼可辨 */
+    if (acted) { ctx.globalAlpha = 0.55; }
 
     if (portrait) {
       ctx.save();
@@ -244,17 +264,19 @@
       ctx.restore();
       ctx.beginPath();
       ctx.arc(px, py - 3, r, 0, Math.PI * 2);
-      ctx.lineWidth = isSelected ? 3 : 2;
-      ctx.strokeStyle = isSelected ? '#f7e6b8' : fac.color;
+      ctx.lineWidth = isSelected ? 3 : 2.4;
+      ctx.strokeStyle = isSelected ? '#f7e6b8' : ring;
+      if (acted) { ctx.setLineDash([4, 3]); }
       ctx.stroke();
+      ctx.setLineDash([]);
     } else if (bunting) {
       var side = L.s * 1.5;
       ctx.drawImage(bunting, px - side / 2, py - side / 2 - 2, side, side);
-      if (isSelected) {
-        ctx.strokeStyle = '#f7e6b8';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(px - side / 2, py - side / 2 - 2, side, side);
-      }
+      ctx.strokeStyle = isSelected ? '#f7e6b8' : ring;
+      ctx.lineWidth = 2.4;
+      if (acted) { ctx.setLineDash([4, 3]); }
+      ctx.strokeRect(px - side / 2, py - side / 2 - 2, side, side);
+      ctx.setLineDash([]);
     } else {
       var ensign = artGet('banner', u.faction);   // 势力旗图（可选）
       if (ensign) {
@@ -268,17 +290,21 @@
         ctx.restore();
         ctx.beginPath();
         ctx.arc(px, py - 3, r, 0, Math.PI * 2);
-        ctx.lineWidth = isSelected ? 3 : 2;
-        ctx.strokeStyle = isSelected ? '#f7e6b8' : fac.color;
+        ctx.lineWidth = isSelected ? 3 : 2.4;
+        ctx.strokeStyle = isSelected ? '#f7e6b8' : ring;
+        if (acted) { ctx.setLineDash([4, 3]); }
         ctx.stroke();
+        ctx.setLineDash([]);
       } else {
         ctx.beginPath();
         ctx.arc(px, py - 3, r, 0, Math.PI * 2);
         ctx.fillStyle = fac.color;
         ctx.fill();
-        ctx.lineWidth = isSelected ? 3 : 1.6;
-        ctx.strokeStyle = isSelected ? '#f7e6b8' : 'rgba(30,24,18,.7)';
+        ctx.lineWidth = isSelected ? 3 : 2.4;
+        ctx.strokeStyle = isSelected ? '#f7e6b8' : ring;
+        if (acted) { ctx.setLineDash([4, 3]); }
         ctx.stroke();
+        ctx.setLineDash([]);
         ctx.fillStyle = '#fff8ec';
         ctx.font = '13px Georgia, "Songti SC", serif';
         ctx.textAlign = 'center';
@@ -286,6 +312,17 @@
         var mark = gen ? gen.name.charAt(0) : root.Rules.UNITS[u.type].abbr;
         ctx.fillText(mark, px, py - 2);
       }
+    }
+
+    /* 待命之金丸：我之部曲尚可行动 */
+    if (rank === 'mine' && !acted) {
+      ctx.beginPath();
+      ctx.arc(px + r * 0.82, py - 3 - r * 0.82, 3.2, 0, Math.PI * 2);
+      ctx.fillStyle = '#f7e6b8';
+      ctx.fill();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(40,33,26,.75)';
+      ctx.stroke();
     }
 
     // 兵力条
@@ -328,11 +365,34 @@
     ctx.restore();
   }
 
+  /* —— 缩放与推移 ——
+   * zoom：1 为满图（缩放至适），大于 1 为放大；pan：画布内之偏移（像素）。
+   * 缩放不改布局（layout 仍按满图画），只在绘时施一变换，故所画即所点。
+   */
+  function viewOf(view) {
+    var z = (view && view.zoom) || 1;
+    if (!(z > 0.999 && z < 6)) { z = 1; }
+    var p = (view && view.pan) || { x: 0, y: 0 };
+    return { z: z, x: p.x || 0, y: p.y || 0 };
+  }
+
+  /* 推移之限：图既放大，只许推移至图之四边，不使图外露白 */
+  function clampPan(canvas, z, pan) {
+    var minX = -(z - 1) * canvas.width, minY = -(z - 1) * canvas.height;
+    return {
+      x: Math.max(minX, Math.min(0, pan.x || 0)),
+      y: Math.max(minY, Math.min(0, pan.y || 0))
+    };
+  }
+
   function draw(ctx, st, view) {
     view = view || {};
+    var V = viewOf(view);
     var L = layout(ctx);
     ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    if (V.z !== 1 || V.x || V.y) { ctx.setTransform(V.z, 0, 0, V.z, V.x, V.y); }
 
     for (var y = 0; y < root.MAP.H; y++) {
       for (var x = 0; x < root.MAP.W; x++) {
@@ -409,20 +469,32 @@
   }
 
   /* 画布以 CSS 缩放显示（内部 1200 余像素，屏上可能只有 700 余像素），
-     故须先把鼠标坐标按 canvas.width / 屏幕宽 换算回内部坐标，再作六边取整。 */
-  function hit(e, canvas) {
+     故须先把鼠标坐标按 canvas.width / 屏幕宽 换算回内部坐标，再作六边取整；
+     图既放大、推移，则更须先减去偏移、再除以倍数，方得满图时之坐标。 */
+  function hit(e, canvas, view) {
     var r = canvas.getBoundingClientRect();
     if (!r.width || !r.height) { return null; }
     var kx = canvas.width / r.width;
     var ky = canvas.height / r.height;
     var px = (e.clientX - r.left) * kx;
     var py = (e.clientY - r.top) * ky;
-    return tileAtPixel(layout({ canvas: canvas }), px, py);
+    var V = viewOf(view);
+    return tileAtPixel(layout({ canvas: canvas }), (px - V.x) / V.z, (py - V.y) / V.z);
+  }
+
+  /* 画布内部像素（非屏幕像素）：供拖拽推移之用 */
+  function pixelAt(e, canvas) {
+    var r = canvas.getBoundingClientRect();
+    if (!r.width || !r.height) { return null; }
+    return { x: (e.clientX - r.left) * (canvas.width / r.width), y: (e.clientY - r.top) * (canvas.height / r.height), k: canvas.width / r.width };
   }
 
   root.Render = {
     draw: draw,
     hit: hit,
+    pixelAt: pixelAt,
+    viewOf: viewOf,
+    clampPan: clampPan,
     layout: layout,
     center: center,
     hexPath: hexPath,

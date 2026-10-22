@@ -98,31 +98,100 @@ function stage(srcDir, stageDir) {
   return { files: files.length, version: v };
 }
 
-/* 替换：旧站更名留档，暂存就其位（各为一次改名，故无半新半旧之态） */
-function apply(stageDir, webRoot) {
+/* abs 在 webRoot 之内的相对之径（/ 分隔）；不在其内者返回 null */
+function relInside(webRoot, abs) {
+  if (!abs) { return null; }
+  const root = path.resolve(webRoot);
+  const rel = path.relative(root, path.resolve(abs));
+  if (!rel || rel === '.') { return null; }
+  if (path.isAbsolute(rel) || rel.split(path.sep)[0] === '..') { return null; }
+  return rel.split(path.sep).join('/');
+}
+
+/* 须保全之目：服务端目录（EXCLUDE 使之恒不入暂存）＋调用者所指定者（如数据目录） */
+function keepsOf(webRoot, opts) {
+  const keeps = ['server'];
+  ((opts && opts.keep) || []).forEach(p => {
+    const rel = relInside(webRoot, p);
+    if (rel) { keeps.push(rel); }         // 不在站目录之内者无须保全
+  });
+  return keeps;
+}
+
+/* 归位：把 prevDir 之 rel 搬回 newDir 之原位。
+ * 先短后长（父先子后），故 server 与 server/data 之类重叠者不致二次改名；
+ * 新站已有者以现有者为准，不覆盖。 */
+function relocate(prevDir, newDir, rels) {
+  const uniq = [];
+  rels.forEach(r => { if (r && uniq.indexOf(r) < 0) { uniq.push(r); } });
+  uniq.sort((a, b) => (a.split('/').length - b.split('/').length) || (a < b ? -1 : a > b ? 1 : 0));
+  const kept = [], skipped = [];
+  uniq.forEach(rel => {
+    const src = path.join(prevDir, rel), dst = path.join(newDir, rel);
+    if (fs.existsSync(dst)) { skipped.push(rel); return; }
+    if (!fs.existsSync(src)) { return; }
+    fs.mkdirSync(path.dirname(dst), { recursive: true });
+    fs.renameSync(src, dst);
+    kept.push(rel);
+  });
+  return { kept: kept, skipped: skipped };
+}
+
+/* 替换：旧站更名留档，暂存就其位（各为一次改名，故无半新半旧之态）；
+ * opts.keep 为须保全之绝对路径（如数据目录），另自动保全站目录中的 server/。
+ * 暂存目录若落在站目录之内（数据目录在站目录之内时即是），先移出再改名，
+ * 否则随站目录改名而失其旧路径，替换之举必败。 */
+function apply(stageDir, webRoot, opts) {
   const backup = webRoot + '.prev';
   if (!fs.existsSync(stageDir)) { throw new Error('暂存目录不存在：' + stageDir); }
+  const keeps = keepsOf(webRoot, opts);
+
+  let stage = stageDir, stageMoved = null;
+  if (relInside(webRoot, stageDir)) {
+    stageMoved = webRoot + '.incoming';
+    if (fs.existsSync(stageMoved)) { fs.rmSync(stageMoved, { recursive: true, force: true }); }
+    fs.renameSync(stageDir, stageMoved);
+    stage = stageMoved;
+  }
+
   if (fs.existsSync(backup)) { fs.rmSync(backup, { recursive: true, force: true }); }
   const had = fs.existsSync(webRoot);
   if (had) { fs.renameSync(webRoot, backup); }
   try {
-    fs.renameSync(stageDir, webRoot);
+    fs.renameSync(stage, webRoot);
   } catch (e) {
     if (had) { try { fs.renameSync(backup, webRoot); } catch (e2) { /* 留档犹在，可手动复原 */ } }
+    if (stageMoved && !fs.existsSync(stageDir)) { try { fs.renameSync(stageMoved, stageDir); } catch (e2) { /* 暂存犹在，可手动取回 */ } }
     throw e;
   }
-  return { backup: had ? backup : null, version: readVersion(webRoot) };
+  const kept = had ? relocate(backup, webRoot, keeps) : { kept: [], skipped: [] };
+  return {
+    backup: had ? backup : null, version: readVersion(webRoot),
+    kept: kept.kept, skipped: kept.skipped, stageMoved: !!stageMoved
+  };
 }
 
-/* 回滚：以留档复原旧站 */
-function rollback(webRoot) {
+/* 回滚：以留档复原旧站；opts 同 apply，故数据目录与服务端目录亦归原位 */
+function rollback(webRoot, opts) {
   const backup = webRoot + '.prev';
   if (!fs.existsSync(backup)) { throw new Error('无留档可回滚：' + backup); }
+  const keeps = keepsOf(webRoot, opts);
   const bad = webRoot + '.bad';
   if (fs.existsSync(bad)) { fs.rmSync(bad, { recursive: true, force: true }); }
-  if (fs.existsSync(webRoot)) { fs.renameSync(webRoot, bad); }
-  fs.renameSync(backup, webRoot);
-  return { version: readVersion(webRoot), bad: fs.existsSync(bad) ? bad : null };
+  const had = fs.existsSync(webRoot);
+  if (had) { fs.renameSync(webRoot, bad); }
+  try {
+    fs.renameSync(backup, webRoot);
+  } catch (e) {
+    if (had) { try { fs.renameSync(bad, webRoot); } catch (e2) { /* 留档犹在，可手动复原 */ } }
+    throw e;
+  }
+  /* 新站中被搬走者（更新时所保全者）从 .bad 归位，免其随回滚而失 */
+  const kept = had ? relocate(bad, webRoot, keeps) : { kept: [], skipped: [] };
+  return {
+    version: readVersion(webRoot), bad: fs.existsSync(bad) ? bad : null,
+    kept: kept.kept, skipped: kept.skipped
+  };
 }
 
 /* 自 Git 仓库取新版入暂存目录（须本机有 git）。repo 可为 URL 或本地路径 */
@@ -139,4 +208,4 @@ function gitExport(repo, ref, destDir) {
   return { dir: destDir, version: readVersion(destDir) };
 }
 
-module.exports = { plan, stage, apply, rollback, gitExport, listFiles, readVersion, REQUIRED, VERSION_RE };
+module.exports = { plan, stage, apply, rollback, gitExport, listFiles, readVersion, relInside, REQUIRED, VERSION_RE };

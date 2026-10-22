@@ -13,10 +13,10 @@ const FILES = [
   'src/data/progress.js',
   'src/data/politics_1.js',
   'src/data/generals_1.js', 'src/data/generals_2.js', 'src/data/generals_3.js', 'src/data/generals_4.js',
-  'src/data/lore.js',
+  'src/data/lore.js', 'src/data/clans_1.js', 'src/data/clans_2.js',
   'src/data/stories_1.js', 'src/data/stories_2.js', 'src/data/stories_3.js',
   'src/data/stories_4.js', 'src/data/stories_5.js', 'src/data/stories_6.js', 'src/data/stories_7.js',
-  'src/core/rules.js', 'src/core/campaign.js', 'src/core/politics.js', 'src/core/engine.js', 'src/core/story.js',
+  'src/core/rules.js', 'src/core/campaign.js', 'src/core/politics.js', 'src/core/population.js', 'src/core/clans.js', 'src/core/engine.js', 'src/core/story.js',
   'src/core/tutor.js', 'src/core/ai.js'
 ];
 
@@ -110,7 +110,8 @@ for (let t = 0; t < turns && st.phase !== 'over'; t++) {
   const mine = st.units.filter(u => u.faction === st.player && u.hp > 0);
   for (const u of mine) {
     if (st.phase === 'over') break;
-    u.acted = false;
+    /* 君主坐镇：君在则国在，君主阵殁即败（见 engine.lordDown），故本推演不遣君主陷阵 */
+    u.acted = false; if (u.general === st.lordGeneral) { u.acted = true; u.moveLeft = 0; continue; }
     u.moveLeft = Rules.statsOf(u, u.generalRef).move;
     const tgt = Rules.targetsFor(st, u)[0];
     if (tgt) { Eng.attackUnit(st, u.id, tgt.id); continue; }
@@ -138,7 +139,8 @@ console.log('推演 ' + turns + ' 回合：年份至 ' + st.year + '，我方城
   '，部曲 ' + st.units.filter(u => u.faction === st.player).length +
   '，金 ' + Math.round(st.factions[st.player].gold) + '，粮 ' + Math.round(st.factions[st.player].food) +
   '，剧情章回 ' + chapters + '，朝局（党争 ' + Math.round(st.court.strife) + '／名分 ' + Math.round(st.court.legit) + '／储 ' + (st.court.heir ? st.court.heir.name : '未定') + '）' +
-  '，结局 ' + (st.result ? (st.result.win ? '胜' : '败') : '未决'));
+  '，户口 ' + Math.round(Eng.popTotal(st, st.player) * 10) / 10 + ' 万口' +
+  '，结局 ' + (st.result ? (st.result.win ? '胜' : '败') + (st.result.reason ? '（' + st.result.reason + (st.result.how ? '·' + st.result.how : '') + '）' : '') : '未决'));
 if (st.result) {
   const e = Story.endingFor(st);
   console.log('结局文案：' + (e ? e.title : '（缺）'));

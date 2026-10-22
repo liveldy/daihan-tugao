@@ -43,6 +43,14 @@ const SESSION_MAX_AGE = Number(ARG['session-max-age'] || 30 * 24 * 3600 * 1000);
 
 const store = new Store(DATA_DIR);
 
+/* 数据目录落在站目录之内？默认部署（--data 缺省＝站目录下的 server/data）即是。
+ * 更新时须将其保全于原绝对路径，否则账号令牌随之而去。 */
+function isInside(parent, child) {
+  const rel = path.relative(path.resolve(parent), path.resolve(child));
+  return !!rel && rel !== '.' && !path.isAbsolute(rel) && rel.split(path.sep)[0] !== '..';
+}
+const DATA_IN_WEB = isInside(WEB_ROOT, DATA_DIR);
+
 /* 管理员令牌：命令行 > 环境 > 数据目录中的 admin.token（首次自动生成） */
 const ADMIN_FILE = path.join(DATA_DIR, 'admin.token');
 let adminToken = ARG['admin-token'] || process.env.DAIHAN_ADMIN_TOKEN || '';
@@ -160,10 +168,12 @@ function serveStatic(req, res, pathname) {
 }
 
 /* ————— 更新：冻结、待客、替换 ————— */
+/* 待客：只计非管理员之在线者。管理员正在界面施行更新，其自身之会话若计入，
+ * 更新必白等至逾时，乃至把主人自己强踢下场。 */
 async function drainSessions(onNote) {
   const t0 = Date.now();
   for (;;) {
-    const act = store.active(DRAIN_IDLE);
+    const act = store.active(DRAIN_IDLE, { excludeAdmins: true });
     if (!act.length) { return { waited: Date.now() - t0, forced: false, remaining: 0 }; }
     if (Date.now() - t0 >= DRAIN_TIMEOUT) { return { waited: Date.now() - t0, forced: true, remaining: act.length }; }
     if (onNote) { onNote(act); }
@@ -210,17 +220,18 @@ async function runUpdate(src) {
     const drained = await drainSessions(act => { state.update.online = act.length; });
 
     state.update.phase = 'swap';
-    const applied = upd.apply(STAGE_WEB, state.fileRoot);
+    /* 数据目录须保全于原绝对路径（默认部署即在站目录之内）；服务端目录由 update.js 一并保全 */
+    const applied = upd.apply(STAGE_WEB, state.fileRoot, { keep: [DATA_DIR] });
 
     state.maintenance = { on: false, text: '', since: null };
     const done = {
       ok: true, from: p.current, to: applied.version, files: st.files,
-      drained: drained, waited: Date.now() - t0, backup: applied.backup
+      drained: drained, waited: Date.now() - t0, backup: applied.backup, kept: applied.kept
     };
     state.lastUpdate = done;
     state.update = null;
     broadcast({ type: 'updated', version: applied.version, from: p.current });
-    logUpdate({ act: 'update', from: p.current, to: applied.version, files: st.files, drained: drained, elapsed: done.waited });
+    logUpdate({ act: 'update', from: p.current, to: applied.version, files: st.files, drained: drained, kept: applied.kept, elapsed: done.waited });
     if (chk.cleanup) { try { fs.rmSync(chk.cleanup, { recursive: true, force: true }); } catch (e) { /* 留之无碍 */ } }
     return done;
   } catch (e) {
@@ -329,8 +340,12 @@ async function api(req, res, url) {
       json(res, 200, {
         ok: true, version: versionNow(), fileRoot: state.fileRoot, dataDir: DATA_DIR,
         maintenance: state.maintenance, update: state.update, lastUpdate: state.lastUpdate,
-        online: store.active(DRAIN_IDLE).length, sessions: Object.keys(store.tokens).length,
+        /* 在线：非管理员之在线者（更新待客即以此为准）；onlineAll 另计管理员 */
+        online: store.active(DRAIN_IDLE, { excludeAdmins: true }).length,
+        onlineAll: store.active(DRAIN_IDLE).length,
+        sessions: Object.keys(store.tokens).length,
         accounts: Object.keys(store.users).length,
+        dataInWeb: DATA_IN_WEB,
         drain: { idleMs: DRAIN_IDLE, timeoutMs: DRAIN_TIMEOUT },
         startedAt: state.startedAt, uptime: Date.now() - state.startedAt
       });
@@ -369,7 +384,7 @@ async function api(req, res, url) {
     }
     if (p === '/api/admin/rollback' && req.method === 'POST') {
       try {
-        const r = upd.rollback(state.fileRoot);
+        const r = upd.rollback(state.fileRoot, { keep: [DATA_DIR] });
         state.maintenance = { on: false, text: '', since: null };
         logUpdate({ act: 'rollback', to: r.version });
         json(res, 200, { ok: true, version: r.version });
@@ -403,6 +418,10 @@ server.listen(PORT, HOST, () => {
   console.log('  监听　：http://' + HOST + ':' + PORT + '/');
   console.log('  站目录：' + state.fileRoot + '（版本 ' + versionNow() + '）');
   console.log('  数据　：' + DATA_DIR);
+  if (DATA_IN_WEB) {
+    console.log('  注意　：数据目录在站目录之内（' + path.relative(WEB_ROOT, DATA_DIR) + '）——更新与回滚时会自动'
+      + '保全于原处，账号、令牌、云存档不随之而去；惟仍以数据目录置于站目录之外为佳（如 --data ../daihan-data）');
+  }
   console.log('  管理员：' + (ARG['admin-token'] || process.env.DAIHAN_ADMIN_TOKEN ? '取自命令行或环境' : ADMIN_FILE) +
     '（令牌以 x-admin-token 头发送，切勿外泄）');
   console.log('  预览版：https://liveldy.github.io/daihan-tugao/（无账号，唯静态）');

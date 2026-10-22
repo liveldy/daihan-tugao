@@ -6,12 +6,31 @@
   var UI = {};
 
   var state = null;
-  var view = { selected: null, reachable: [], targets: [], cityTargets: [], inspect: null };
+  var view = { selected: null, reachable: [], targets: [], cityTargets: [], inspect: null, zoom: 1, pan: { x: 0, y: 0 } };
   var tab = 'army';
   var pick = { group: null, entry: null, lord: null, scenario: null, stage: 0 };
   var busy = false;
   var mode = 'menu';   // 'menu' | 'play' | 'tutor'
   var tutorStep = 0;
+
+  /* 舆图之缩放与推移：见「地图交互」一节 */
+  var ZOOM_MIN = 1, ZOOM_MAX = 3;
+  var HINT_IDLE = '点本方部曲即可调遣，点敌军可探其虚实。环色辨敌我：我绿、友灰、敌赤；' +
+    '我方已行动者半淡，未行动者右上角一点金丸。取消之法：再点该部曲／点舆图空白处；' +
+    '电脑亦可右键或按 Esc，手机可长按（或按「取消 ✕」）。滚轮或「＋」「−」可缩放舆图，拖动可推移。';
+  /* 窄屏之底栏逼仄，故文从简，全文仍入于悬停（title） */
+  var HINT_BRIEF = '点本方部曲即可调遣。取消：再点该军、点空白处、长按舆图，或按「取消 ✕」。';
+
+  function narrow() {
+    return !!(root.matchMedia && root.matchMedia('(max-width: 720px)').matches);
+  }
+
+  function idleHint() { return narrow() ? HINT_BRIEF : HINT_IDLE; }
+
+  function num(v) {
+    if (root.Population) { return root.Population.num(v); }
+    return v == null ? '—' : String(Math.round(v * 10) / 10);
+  }
 
   var $ = function (id) { return document.getElementById(id); };  var el = function (tag, cls, txt) {
     var n = document.createElement(tag);
@@ -103,6 +122,9 @@
         var av = avatarOf('portrait', [lk, lordGeneralId(lk)], 'av-btn', '');
         if (av) { b.appendChild(av); }
         b.appendChild(document.createTextNode(l.name + '（' + l.year + '年·' + l.difficultyName + '）'));
+        var mk = root.PROGRESS ? root.PROGRESS.lordMark(lk) : '';
+        if (mk) { b.appendChild(el('span', 'lm' + (mk === '完全通关' ? ' full' : ''), mk)); }
+        b.title = mk ? (l.name + '：' + mk + '（常规通关＝其非无定式之关皆克；完全通关＝连末关无定式亦克）') : '';
         b.addEventListener('click', function (ev) {
           ev.stopPropagation();
           pick.entry = e.id; pick.lord = lk;
@@ -155,10 +177,18 @@
 
     var total = list.reduce(function (a, s) { return a + s.stages.length; }, 0);
     var tally = P ? P.tally(pick.lord) : { done: 0, total: total };
+    var ls = P ? P.lordStatus(pick.lord) : null;
     var head = el('div', 'camp-head');
     head.appendChild(el('span', 'camp-title', '疆场之记'));
-    head.appendChild(el('span', 'camp-sub',
-      '此君凡 ' + list.length + ' 局 · ' + total + ' 关；已克 ' + tally.done + ' 关。新关随前关之克而启。'));
+    var sub = el('span', 'camp-sub',
+      '此君凡 ' + list.length + ' 局 · ' + total + ' 关（其中有定志者 ' + (ls ? ls.nonOpen : total) +
+      ' 关）；已克 ' + tally.done + ' 关。新关随前关之克而启。');
+    sub.appendChild(el('b', 'lm-line',
+      '　常规通关：有定志之关皆克，' + (ls ? ls.doneNonOpen + '／' + ls.nonOpen : '—') +
+      '；完全通关：连末关无定式亦克，' + (ls ? ls.done + '／' + ls.total : '—') + '。'));
+    if (ls && ls.normal) { sub.appendChild(el('span', 'lm' + (ls.complete ? ' full' : ''), P.lordMark(pick.lord))); }
+    sub.title = '常规通关即启下一局、并计入「兵书志略」之门；完全通关另于君主之名加「完全通关」之识。';
+    head.appendChild(sub);
     panel.appendChild(head);
 
     var tabs = el('div', 'scen-tabs');
@@ -170,9 +200,13 @@
       b.disabled = !open;
       b.setAttribute('aria-pressed', String(!!cur && sc.id === cur.id));
       b.appendChild(el('b', null, (i + 1) + '· ' + sc.name));
+      var nOpenSt = P ? P.nonOpenCount(pick.lord, sc.id) : sc.stages.length;
       b.appendChild(el('span', null, sc.year + '年 · ' +
         (MAP.ERAS[sc.era] ? MAP.ERAS[sc.era].title : sc.era) + ' · ' + sc.stages.length + ' 关' +
+        '（定志 ' + nOpenSt + '）' +
         (open ? '' : ' · 未启')));
+      if (P && P.scenarioComplete(pick.lord, sc.id)) { b.appendChild(el('em', 'lm full', '完全通关')); }
+      else if (P && P.scenarioNormalClear(pick.lord, sc.id)) { b.appendChild(el('em', 'lm', '常规通关')); }
       b.addEventListener('click', function () {
         if (!open) { return; }
         pick.scenario = sc.id; pick.stage = 0;
@@ -212,8 +246,12 @@
     body.appendChild(el('b', null, st.name));
     if (st.desc) { body.appendChild(el('span', 'desc', st.desc)); }
     body.appendChild(el('span', 'goal', '目标：' + C.goalText(st.goal)));
+    if (st.goal && st.goal.open) {
+      body.appendChild(el('span', 'goal open-note', '（无定式末关：不计入常规通关，唯克之方为完全通关）'));
+    }
     row.appendChild(body);
     row.appendChild(el('span', 'st', !open ? '未启' : (idx < doneN ? '已克' : '可战')));
+    if (st.goal && st.goal.open) { row.appendChild(el('span', 'st open-tag', '无定式')); }
     if (onPick) { row.addEventListener('click', function () { if (open) { onPick(); } }); }
     return row;
   }
@@ -255,6 +293,7 @@
     cv.height = Math.round(1200 * rows / (Math.sqrt(3) * cols));
     $('picker').hidden = true;
     $('mainMenu').hidden = true;
+    hint(idleHint());
     toast(lord.name + (state.stage ? '·' + state.stage.name : '') + '起');
     draw();
     if (mode === 'tutor') { T().begin(state); }
@@ -285,25 +324,53 @@
     var ctx = $('map').getContext('2d');
     root.Render.draw(ctx, state, {
       selected: view.selected, reachable: view.reachable,
-      targets: view.targets, cityTargets: view.cityTargets
+      targets: view.targets, cityTargets: view.cityTargets,
+      zoom: view.zoom, pan: view.pan
     });
 
     var f = state.factions[state.player];
+    var inc = f.income || null;
     var res = $('resources');
     clear(res);
-    [['金', Math.round(f.gold)], ['粮', Math.round(f.food)], ['威望', Math.round(f.prestige)],
-      ['城池', Eng.countCities(state, state.player)], ['敌军', Story.hostileCities(state)]]
-      .forEach(function (p) {
-        var d = el('span', 'res');
-        d.appendChild(el('i', null, p[0]));
-        var b = el('b', null, String(p[1]));
-        d.appendChild(b);
-        res.appendChild(d);
-      });
+    /* 顶栏：本回合之出入（金、粮、户口皆有增损之数），悬停另见其详 */
+    var rows = [
+      { k: '金', v: Math.round(f.gold), d: inc ? inc.goldNet : null,
+        t: inc ? ('本回合岁入 ' + inc.gold + '，净 ' + signed(inc.goldNet) +
+          (inc.drag < 1 ? '；党争折损 ×' + inc.drag : '') +
+          (inc.clans && inc.clans.gold ? '；世族 ' + signed(inc.clans.gold) + '%' : '')) : '本回合之出入待第一回合之毕' },
+      { k: '粮', v: Math.round(f.food), d: inc ? inc.foodNet : null,
+        t: inc ? ('本回合岁入 ' + inc.food + '，军粮 ' + inc.upkeep + '，净 ' + signed(inc.foodNet)) : '' },
+      { k: '威望', v: Math.round(f.prestige), d: null, t: '威望：名分与诏令之本' },
+      { k: '户口', v: num(Eng.popTotal(state, state.player)), d: inc ? inc.popDelta : null,
+        t: inc ? ('我之户口共 ' + num(Eng.popTotal(state, state.player)) + ' 万口；本回合 ' + signed(inc.popDelta) +
+          ' 万口（征兵则减，民安则滋息）') : '户口：征兵之本，休养生息可复之' },
+      { k: '城池', v: Eng.countCities(state, state.player), d: null, t: '我之城池' },
+      { k: '敌军', v: Story.hostileCities(state), d: null, t: '与我交兵之城' }
+    ];
+    rows.forEach(function (p) {
+      var d = el('span', 'res');
+      d.appendChild(el('i', null, p.k));
+      d.appendChild(el('b', null, String(p.v)));
+      if (p.d != null && p.d !== 0) {
+        var em = el('em', 'delta ' + (p.d > 0 ? 'up' : 'down'), signed(p.d));
+        d.appendChild(em);
+      } else if (p.d === 0) {
+        d.appendChild(el('em', 'delta flat', '±0'));
+      }
+      if (p.t) { d.title = p.t; }
+      res.appendChild(d);
+    });
     $('clock').textContent = state.year + '年 · ' + state.eraTitle + ' · 第' + state.turn + '回合 · ' + ['春', '夏', '秋', '冬'][state.seasonIdx];
     drawObjective();
     drawCourt();
+    syncTools();
     renderTab();
+  }
+
+  function signed(v) {
+    if (v == null) { return ''; }
+    var n = Math.round(v * 10) / 10;
+    return (n > 0 ? '+' : '') + n;
   }
 
   /* 朝局之栏：常驻顶栏，示党争、名分与储位 */
@@ -502,9 +569,12 @@
   }
 
   function renderCity(p) {
+    var P = root.Population;
     var mine = Object.keys(state.cities).filter(function (k) { return state.cities[k].owner === state.player; });
-    p.appendChild(h('我之郡县（' + mine.length + '）'));
-    p.appendChild(el('p', null, '守备尽则城可下；民心低则易生民变。增筑可提高守备与岁入。'));
+    p.appendChild(h('我之郡县（' + mine.length + '）　户口共 ' + num(Eng.popTotal(state, state.player)) + '口'));
+    p.appendChild(el('p', null, '守备尽则城可下；民心低则易生民变。增筑可提高守备与岁入。' +
+      '户口为征兵之本：每征一部曲，即耗该城户口（一兵约当四十口之家），征之过甚则户口骤减、田野荒芜；' +
+      '「休养生息」则户口自复，惟费金 ' + (P ? P.REST_GOLD : 200) + '、且有回合之限。'));
     mine.forEach(function (k) {
       var c = state.cities[k];
       var card = el('div', 'card tight');
@@ -514,12 +584,24 @@
       card.appendChild(row);
       /* 守备之数已在下一行，不再另画进度条 */
       card.appendChild(el('div', 'sub', '守备 ' + Math.round(c.garrison) + '/' + c.maxGarrison + '　民心 ' + Math.round(c.morale) + '　骚动 ' + Math.round(c.unrest)));
+      var pop = Eng.popOf(state, k);
+      var base = P ? P.base(k) : null;
+      var pct = base ? Math.round(pop / base * 100) : null;
+      var popLine = el('div', 'sub pop-line', '户口 ' + num(pop) + '口' +
+        (base ? '（基数 ' + num(base) + '，今 ' + pct + '%）' : '') +
+        (pct != null && pct < 50 ? '　⚠ 户口凋敝' : ''));
+      if (pct != null && pct < 50) { popLine.className += ' warn'; }
+      card.appendChild(popLine);
       var types = cityTypes(c);
       var box = el('div');
       box.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;';
       types.forEach(function (t) {
         var cost = Eng.recruitCost(state, t, k);
+        var levy = P ? P.levy(t) : 0;
+        var can = P ? P.canRecruit(state, k, t) : { ok: true };
         var b = el('button', 'btn sm', Rules.UNITS[t].name + ' ' + cost);
+        b.title = '耗金 ' + cost + '，户口 −' + num(levy) + '口' + (can.ok ? '' : '；' + can.why);
+        b.disabled = !can.ok;
         b.addEventListener('click', function () {
           var r = Eng.recruit(state, k, t, null);
           toast(r.msg);
@@ -537,6 +619,20 @@
         draw();
       });
       card.appendChild(up);
+      /* 休养生息：罢兵息民，劝课农桑（见 src/core/population.js） */
+      var ri = Eng.restInfo(state, k);
+      var gainTxt = P ? num(P.gain(state, k)) : '—';
+      var rest = el('button', 'btn sm', '休养生息（金 ' + (P ? P.REST_GOLD : 200) + '，户口 +' + gainTxt + '）');
+      rest.disabled = !ri.ok;
+      rest.title = ri.ok ? ('户口 +' + gainTxt + ' 万口，民心 +5，骚动 −12') : ri.why;
+      rest.addEventListener('click', function () {
+        var r = Eng.restCity(state, k);
+        toast(r.msg);
+        if (r.ok) { renderTab(); }
+        draw();
+      });
+      card.appendChild(rest);
+      if (!ri.ok && ri.why) { card.appendChild(el('div', 'why', ri.why)); }
       p.appendChild(card);
     });
   }
@@ -578,42 +674,85 @@
       p.appendChild(card);
     });
 
-    var wild = Object.keys(state.generals).filter(function (k) {
-      var g = state.generals[k];
-      return g.status === 'wild' && !g.owner;
-    });
-    p.appendChild(h('在野之士（' + wild.length + '）'));
-    wild.slice(0, 20).forEach(function (k) {
-      var g = gen[k];
-      if (!g) { return; }
+    var wild = Eng.recruitable(state);
+    var open = wild.filter(function (x) { return x.open; });
+    var shut = wild.filter(function (x) { return !x.open; });
+    p.appendChild(h('在野之士（' + wild.length + '　可辟 ' + open.length + '）'));
+    p.appendChild(el('p', 'sub', '征辟之制：其人须无主，而非一方之主（天子与诸侯不可为臣）；' +
+      '且其乡里在我疆、或与我同州（未立之国者，以其本据为乡里——晋人归洛阳、蜀人归成都）。' +
+      '其国已亡者可为吾用，惟名重天下者耻为人下。' +
+      '「氏族」之荐（见庙堂）可破此限。'));
+    if (!wild.length) { p.appendChild(el('div', 'empty', '四方无遗贤。')); return; }
+
+    function bruteCard(x) {
       var card = el('div', 'card tight');
-      card.appendChild(el('div', 'name', g.name + (g.zi ? '　字' + g.zi : '')));
-      card.appendChild(el('div', 'sub', (g.bio || '').slice(0, 46) + '…'));
-      var cost = 80 + (g.impact || 2) * 60;
-      var b = el('button', 'btn sm', '征辟 ' + cost);
-      b.addEventListener('click', function () { toast(Eng.recruitGeneral(state, k).msg); draw(); });
+      card.appendChild(el('div', 'name', x.name + (x.zi ? '　字' + x.zi : '')));
+      card.appendChild(el('div', 'sub', (x.bio || '').slice(0, 46) + '…'));
+      var line = el('div', 'sub', '影响 ' + x.impact +
+        (x.home ? '　乡里 ' + x.home.name : '　乡里未考') +
+        (x.stats ? '　统' + x.stats.lead + ' 武' + x.stats.war + ' 智' + x.stats.int : ''));
+      card.appendChild(line);
+      var b = el('button', 'btn sm', '征辟 ' + x.cost);
+      b.disabled = !x.open;
+      b.title = x.why || '';
+      b.addEventListener('click', function () {
+        var r = Eng.recruitGeneral(state, x.id);
+        toast(r.msg);
+        draw();
+      });
       card.appendChild(b);
-      p.appendChild(card);
-    });
+      if (!x.open) { card.appendChild(el('div', 'why', x.why)); }
+      return card;
+    }
+
+    open.slice(0, 20).forEach(function (x) { p.appendChild(bruteCard(x)); });
+    if (!open.length) { p.appendChild(el('div', 'empty', '眼前无可辟之人：在野者虽众，其乡里皆在他人之州郡。')); }
+    if (shut.length) {
+      var det = document.createElement('details');
+      det.className = 'who-shut';
+      det.appendChild(el('summary', null, '不可辟者（' + shut.length + '）——何以不可'));
+      shut.slice(0, 30).forEach(function (x) { det.appendChild(bruteCard(x)); });
+      p.appendChild(det);
+    }
+  }
+
+
+  /* 典籍之系属：条目设有 rel 者，惟其与本局（君主／势力／剧本／城池／关卡）相关方列；
+   * 不设 rel 者为通论（举孝廉、九品中正之类），任何一局皆可读。故事线所解锁者亦必列。
+   * 主页面之「典籍」预览则尽列（见 showLorePreview）。 */
+  function loreRelevant(x) {
+    if (!x.rel) { return true; }
+    var S = state, R = x.rel;
+    if (S.lore && S.lore[x.id]) { return true; }
+    if (R.lords && R.lords.indexOf(S.lordKey) >= 0) { return true; }
+    if (R.factions && R.factions.indexOf(S.player) >= 0) { return true; }
+    if (R.eras && R.eras.indexOf(S.era) >= 0) { return true; }
+    if (R.stages && S.stage && R.stages.indexOf(S.stage.id) >= 0) { return true; }
+    if (R.cities && R.cities.some(function (cid) { return S.cities[cid] && S.cities[cid].owner === S.player; })) { return true; }
+    return false;
   }
 
   function renderBook(p) {
     var lore = root.LORE || [];
+    var list = lore.filter(loreRelevant);
     p.appendChild(h('典籍·风物'));
-    p.appendChild(el('p', null, '制度、历法、地理、人文、军事、思潮六类，凡 ' + lore.length + ' 条。'));
+    p.appendChild(el('p', null, '制度、历法、地理、人文、军事、思潮六类，本局所系凡 ' + list.length + ' 条' +
+      '（全书凡 ' + lore.length + ' 条）；与本君主、本剧本、本关无涉者不列，欲观全书请于主页面开「典籍」。'));
     var cats = ['制度', '历法', '地理', '人文', '军事', '思潮'];
     cats.forEach(function (c) {
-      var items = lore.filter(function (x) { return x.cat === c; });
+      var items = list.filter(function (x) { return x.cat === c; });
       if (!items.length) { return; }
       p.appendChild(Object.assign(el('h4', null, c + '（' + items.length + '）'), {}));
       items.forEach(function (x) {
         var d = el('div', 'lore-item');
         d.appendChild(el('h4', null, x.title));
         d.appendChild(el('p', null, x.text));
+        if (x.era) { d.appendChild(el('div', 'src', '断代 ' + x.era + (state && state.lore && state.lore[x.id] ? '　（本局已录）' : ''))); }
         if (x.src) { d.appendChild(el('div', 'src', x.src)); }
         p.appendChild(d);
       });
     });
+    if (!list.length) { p.appendChild(el('div', 'empty', '本局未录典籍。')); }
   }
 
   function renderLog(p) {
@@ -626,7 +765,19 @@
     });
   }
 
-  /* ————— 地图交互 ————— */
+  /* ————— 地图交互 —————
+   * 一、择军：点本方部曲即可调遣（已行动者只可审视）。
+   * 二、取消：桌面临机之右键、Esc 皆可；触屏无右键，故另有四法——
+   *     再点该部曲（切换开关）、点舆图之空白或不可至处、长按舆图（约半秒）、按「取消」钮。
+   * 三、缩放：滚轮（或触屏之双指内捏，若浏览器可递交）＋「＋／−／复位」三钮；图既放大，拖动可推移。
+   */
+  function hint(t) {
+    var h = $('hint');
+    if (!h) { return; }
+    h.textContent = t;
+    h.title = (t === idleHint()) ? HINT_IDLE : t;   // 窄屏文简，悬停可得其全
+  }
+
   function unitAt(x, y) {
     return state.units.filter(function (u) { return u.hp > 0 && u.x === x && u.y === y; })[0];
   }
@@ -638,17 +789,67 @@
     view.cityTargets = Object.keys(state.cities)
       .map(function (k) { return state.cities[k]; })
       .filter(function (c) { return c.owner !== state.player && Rules.inRange(state, u, c.x, c.y); });
-    $('hint').textContent = unitTitle(u) + '：' + (view.reachable.length ? '可移动 ' + view.reachable.length + ' 格' : '无处可往') +
+    hint(unitTitle(u) + '：' + (view.reachable.length ? '可移动 ' + view.reachable.length + ' 格' : '无处可往') +
       (view.targets.length ? '，可击 ' + view.targets.length + ' 部' : '') +
-      (view.cityTargets.length ? '，可攻 ' + view.cityTargets.length + ' 城' : '');
+      (view.cityTargets.length ? '，可攻 ' + view.cityTargets.length + ' 城' : '') +
+      (u.acted ? '　（本回合已行动，只可审视）' : '') + '　再点此军或点空白处即取消。');
+    syncTools();
     T().note('select', { unit: u });
     if (tab === 'army') { draw(); } else { tab = 'army'; syncTabs(); draw(); }
   }
 
-  function deselect() {
+  function deselect(quiet) {
     view.selected = null;
     view.reachable = []; view.targets = []; view.cityTargets = [];
-    $('hint').textContent = '点击舆图上本方部队即可调遣；点击敌军可探其虚实。';
+    if (!quiet) { hint(idleHint()); }
+    syncTools();
+  }
+
+  /* 取消一切选择与敌情之屏：右键、Esc、长按、空白处、取消钮皆归于此 */
+  function cancelAll(msg) {
+    var had = !!(view.selected || view.inspect);
+    deselect(true);
+    clearIntel();
+    hint(msg || idleHint());
+    syncTools();
+    draw();
+    return had;
+  }
+
+  /* —— 缩放与推移 —— */
+  function applyZoom(z, fx, fy) {
+    var canvas = $('map');
+    if (!canvas || !root.Render) { return; }
+    var old = view.zoom || 1;
+    var nz = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Math.round(z * 100) / 100));
+    if (nz === old) { return; }
+    var cx = (fx == null) ? canvas.width / 2 : fx;
+    var cy = (fy == null) ? canvas.height / 2 : fy;
+    var pan = { x: cx - (cx - (view.pan.x || 0)) * (nz / old), y: cy - (cy - (view.pan.y || 0)) * (nz / old) };
+    view.zoom = nz;
+    view.pan = (nz === 1) ? { x: 0, y: 0 } : root.Render.clampPan(canvas, nz, pan);
+    canvas.classList.toggle('zoomed', nz > 1);
+    syncTools();
+    draw();
+  }
+
+  function zoomBy(delta, e) {
+    var canvas = $('map');
+    var px = (e && root.Render.pixelAt) ? root.Render.pixelAt(e, canvas) : null;
+    applyZoom((view.zoom || 1) + delta, px ? px.x : null, px ? px.y : null);
+  }
+
+  function zoomFit() { applyZoom(1); }
+
+  /* 舆图之器：缩放三钮与「取消」 */
+  function syncTools() {
+    var z = view.zoom || 1;
+    var zi = $('btnZoomIn'), zo = $('btnZoomOut'), zf = $('btnZoomFit'), bc = $('btnCancel'), lab = $('zoomLabel');
+    if (zi) { zi.disabled = z >= ZOOM_MAX; }
+    if (zo) { zo.disabled = z <= ZOOM_MIN; }
+    if (zf) { zf.disabled = z === 1; }
+    if (lab) { lab.textContent = Math.round(z * 100) + '%'; }
+    if (bc) { bc.hidden = !(view.selected || view.inspect); }
   }
 
   /* ————— 敌情 ————— */
@@ -659,6 +860,7 @@
     if (!b) { return; }
     b.hidden = true;
     clear(b);
+    syncTools();
   }
 
   function statLine(g) {
@@ -674,6 +876,7 @@
     if (!b) { return; }
     clear(b);
     b.hidden = false;
+    syncTools();
     var fac = MAP.FACTIONS[u.faction] || MAP.FACTIONS.neutral;
     var g = u.generalRef;
     var s = Rules.statsOf(u, g);
@@ -752,6 +955,7 @@
     if (!b) { return; }
     clear(b);
     b.hidden = false;
+    syncTools();
     var fac = MAP.FACTIONS[c.owner] || MAP.FACTIONS.neutral;
     var head = el('div', 'intel-head');
     head.appendChild(el('span', 'intel-tag', c.owner === state.player ? '我城' : '敌城'));
@@ -791,8 +995,11 @@
     if (busy || !state || state.phase === 'over') { return; }
     var u = unitAt(x, y);
 
-    // 一、点本方部队 —— 无论已行动与否，一律选中（已行动者只可审视）
-    if (u && u.faction === state.player) { clearIntel(); select(u); return; }
+    // 一、点本方部队 —— 无论已行动与否，一律选中（已行动者只可审视）；再点一次即取消
+    if (u && u.faction === state.player) {
+      if (view.selected && view.selected.id === u.id) { cancelAll('已取消选择。'); return; }
+      clearIntel(); select(u); return;
+    }
 
     // 二、已有选中部队时，可击之敌 / 可攻之城 / 可往之地
     if (view.selected) {
@@ -832,9 +1039,14 @@
       return;
     }
 
-    // 五、空地
+    // 五、空地（或不可至之处）—— 击之即取消一切选择，此为触屏最便之「取消」
     var t = Rules.terrainOf(state, x, y);
-    if (t) { $('hint').textContent = terrainLabel(x, y); }
+    var had = !!(view.selected || view.inspect);
+    if (had) {
+      cancelAll(t ? (terrainLabel(x, y) + '　（已取消选择）') : '已取消选择。');
+      return;
+    }
+    if (t) { hint(terrainLabel(x, y) + '　' + idleHint()); }
     clearIntel();
     draw();
   }
@@ -1024,18 +1236,25 @@
     var isStage = !!state.stage;
     if (win && isStage && P && state.scenario) {
       P.mark(state.lordKey, state.scenario.id, state.stage.index);
+      refreshGates();
     }
     var e = Story.endingFor(state);
+    var lordDead = !!(state.result && state.result.reason === 'lord');
     var wrap = el('div', 'ending-wrap ' + (win ? 'win' : 'lose'));
     wrap.appendChild(el('div', 'eyebrow',
-      win ? (isStage ? '第 ' + (state.stage.index + 1) + ' 关已克' : '一统之业') : '败亡之局'));
+      win ? (isStage ? '第 ' + (state.stage.index + 1) + ' 关已克' : '一统之业')
+          : (lordDead ? '君主殒命' : '败亡之局')));
     wrap.appendChild(el('div', 'verdict',
       win ? (isStage ? state.stage.name : ((e && e.title) || '天下混一'))
-        : ((e && e.title) || '社稷倾覆')));
+          : ((e && e.title) || '社稷倾覆')));
     wrap.appendChild(el('div', 'etext',
       win ? (isStage ? (state.stage.desc || '') + '　目标：' + (C ? C.goalText(state.stage.goal) : '')
         : ((e && e.text) || '海内一统。'))
-        : ((e && e.text) || '宗庙不守。')));
+        : ((lordDead
+            ? (state.lord ? state.lord.name : '君主') +
+              (state.result.how === 'captured' ? '为敌所擒，' : '殁于阵中，') +
+              '社稷倾覆：君在则国在，此局已终，虽城郭部曲犹存亦不复振。　'
+            : '') + ((e && e.text) || '宗庙不守。'))));
     if (win && isStage && state.scenario) {
       var nx = nextStage();
       wrap.appendChild(el('div', 'etext next-note',
@@ -1089,8 +1308,10 @@
     head.appendChild(el('div', 'idx', '疆场之记'));
     head.appendChild(el('h2', null, state.lord.name + ' · 关卡'));
     var tl = P ? P.tally(state.lordKey) : { done: 0, total: 0 };
+    var lsd = P ? P.lordStatus(state.lordKey) : null;
     head.appendChild(el('div', 'meta', '已克 ' + tl.done + '／' + tl.total + ' 关　今在第 ' +
-      (state.stage ? (state.stage.index + 1) + ' 关·' + state.stage.name : '— 关')));
+      (state.stage ? (state.stage.index + 1) + ' 关·' + state.stage.name : '— 关') +
+      (lsd ? '　定志之关 ' + lsd.doneNonOpen + '／' + lsd.nonOpen + (lsd.normal ? '（' + P.lordMark(state.lordKey) + '）' : '') : '')));
     wrap.appendChild(head);
 
     var body = el('div', 'story-body');
@@ -1245,6 +1466,57 @@
     return card;
   }
 
+  /* 氏族：门第之向背与往来四事（见 src/core/clans.js 与 src/data/clans_1.js） */
+  function courtClansCard() {
+    var card = el('div', 'card');
+    card.appendChild(el('h3', null, '氏族'));
+    var CL = root.Clans;
+    var list = Eng.clansOf ? Eng.clansOf(state) : [];
+    if (!list.length) {
+      card.appendChild(el('p', 'sub', '本局未与著姓相接（氏族之制见 src/data/clans_1.js；其族须附于本势力、' +
+        '或在朝有人在吾幕府、或其在野之士居吾疆，方入此列）。'));
+      return card;
+    }
+    card.appendChild(el('p', 'sub', '汉末之天下，门第与君权相为表里：一州之著姓向背，往往系一州之安危。' +
+      '向背厚则岁入稍增、名分稍正、其在朝者忠心；向背薄则朋党益盛。往来四事：联姻、征辟其子弟、' +
+      '任用其族、裁抑强宗，各有费与限。'));
+    list.forEach(function (c) {
+      var box = el('div', 'clan' + (c.support >= 70 ? ' warm' : (c.support <= 25 ? ' cold' : '')));
+      var row = el('div', 'row');
+      row.appendChild(el('b', null, c.name));
+      row.appendChild(el('span', 'sub', c.junwang + '　' + c.trait));
+      box.appendChild(row);
+      box.appendChild(el('div', 'sub', '向背 ' + c.support + '·' + c.label +
+        '　在朝：' + (c.serving.length ? c.serving.slice(0, 6).map(function (x) { return x.name; }).join('、') : '无其人')));
+      box.appendChild(el('p', 'sub', c.desc));
+      var acts = el('div', 'opts-row');
+      ['marry', 'recommend', 'appoint', 'suppress'].forEach(function (k) {
+        var info = Eng.clanActInfo(state, c.id, k);
+        var a = (CL && CL.ACTS[k]) || {};
+        var cost = a.gold ? '金 ' + a.gold : (a.prestige ? '威望 ' + a.prestige : '');
+        var b = el('button', 'btn sm', (a.name || k) + (cost ? '（' + cost + '）' : ''));
+        b.disabled = !info.ok;
+        b.title = info.ok
+          ? ((a.desc || '') + (k === 'recommend' ? (info.subject ? '　可得：' + info.subject.name : '　其族无人可辟') : ''))
+          : (info.why || '');
+        b.addEventListener('click', function () {
+          var r = Eng.clanDo(state, c.id, k);
+          toast(r.msg);
+          draw();
+          showCourt();
+        });
+        acts.appendChild(b);
+      });
+      box.appendChild(acts);
+      if (c.recruitable && c.recruitable.length) {
+        box.appendChild(el('div', 'sub', '其族在野可辟：' + c.recruitable.slice(0, 5).map(function (x) { return x.name; }).join('、')));
+      }
+      if (c.src) { box.appendChild(el('div', 'src', '史源：' + c.src)); }
+      card.appendChild(box);
+    });
+    return card;
+  }
+
   /* 政争事件：依年依势而发，呈于朝堂，须抉择 */
   function openPolitics() {
     var e = Eng.pendingPolitics(state);
@@ -1353,6 +1625,7 @@
     body.appendChild(courtStatusCard());
     body.appendChild(courtTopicsCard());
     body.appendChild(courtHeirCard());
+    body.appendChild(courtClansCard());
     var list = Object.keys(state.factions).filter(function (k) {
       return k !== state.player && state.factions[k].alive;
     }).sort(function (a, b) {
@@ -1732,16 +2005,76 @@
 
   function wire() {
     var cv = $('map');
+    var suppressClick = false, dragging = false, moved = false, down = null, longTimer = null;
+
+    function endLong() { if (longTimer) { clearTimeout(longTimer); longTimer = null; } }
+
     cv.addEventListener('click', function (e) {
-      var p = root.Render.hit(e, cv);
+      if (suppressClick) { suppressClick = false; return; }
+      var p = root.Render.hit(e, cv, view);
       if (p) { onTile(p.x, p.y); }
     });
-    cv.addEventListener('contextmenu', function (e) { e.preventDefault(); deselect(); clearIntel(); draw(); });
+    /* 桌面之右键＝取消；触屏无右键，故另备「再点」「点空白」「长按」「取消钮」四法 */
+    cv.addEventListener('contextmenu', function (e) { e.preventDefault(); cancelAll('已取消选择。'); });
     cv.addEventListener('mousemove', function (e) {
       if (!state) { return; }
-      var p = root.Render.hit(e, cv);
+      var p = root.Render.hit(e, cv, view);
       cv.style.cursor = (p && unitAt(p.x, p.y)) ? 'pointer' : 'default';
     });
+
+    /* 滚轮缩放：舆图之放大缩小，不改整页之缩放 */
+    cv.addEventListener('wheel', function (e) {
+      if (!state) { return; }
+      e.preventDefault();
+      zoomBy((view.zoom || 1) * (e.deltaY < 0 ? 0.25 : -0.25), e);
+    }, { passive: false });
+
+    /* 双击（触屏之双点亦可）：满图与二倍互转 */
+    cv.addEventListener('dblclick', function (e) {
+      if (!state) { return; }
+      e.preventDefault();
+      if ((view.zoom || 1) > 1) { zoomFit(); } else { zoomBy(1, e); }
+    });
+
+    /* 长按取消（半秒）与拖动推移（图既放大，则以拖动为推移） */
+    cv.addEventListener('pointerdown', function (e) {
+      if (!state || busy) { return; }
+      var px = root.Render.pixelAt(e, cv);
+      down = { x: e.clientX, y: e.clientY, pan: { x: view.pan.x || 0, y: view.pan.y || 0 }, k: px ? px.k : 1 };
+      moved = false; dragging = false;
+      endLong();
+      longTimer = setTimeout(function () {
+        longTimer = null;
+        if (moved || dragging) { return; }
+        suppressClick = true;
+        if (cancelAll('已取消选择（长按）。')) { toast('已取消选择'); }
+      }, 520);
+    });
+    cv.addEventListener('pointermove', function (e) {
+      if (!down) { return; }
+      var dx = e.clientX - down.x, dy = e.clientY - down.y;
+      if (!moved && Math.abs(dx) + Math.abs(dy) > 5) { moved = true; endLong(); }
+      if (!moved) { return; }
+      if ((view.zoom || 1) <= 1) { return; }        // 满图不动；窄屏由原生滚动推移
+      dragging = true;
+      if (e.pointerType === 'touch' && e.cancelable) { e.preventDefault(); }
+      var canvas = cv;
+      view.pan = root.Render.clampPan(canvas, view.zoom || 1,
+        { x: down.pan.x + dx * down.k, y: down.pan.y + dy * down.k });
+      draw();
+    });
+    cv.addEventListener('pointerup', function () {
+      endLong();
+      if (dragging) { suppressClick = true; }
+      down = null; dragging = false; moved = false;
+    });
+    cv.addEventListener('pointercancel', function () { endLong(); down = null; dragging = false; moved = false; });
+
+    /* 舆图之器 */
+    if ($('btnZoomIn')) { $('btnZoomIn').addEventListener('click', function () { zoomBy(0.5); }); }
+    if ($('btnZoomOut')) { $('btnZoomOut').addEventListener('click', function () { zoomBy(-0.5); }); }
+    if ($('btnZoomFit')) { $('btnZoomFit').addEventListener('click', function () { zoomFit(); }); }
+    if ($('btnCancel')) { $('btnCancel').addEventListener('click', function () { cancelAll('已取消选择。'); }); }
 
     $('tabs').addEventListener('click', function (e) {
       var b = e.target.closest('button[data-tab]');
@@ -1777,6 +2110,12 @@
       startGame('caocao', { tutorial: true });
     });
     $('btnWiki').addEventListener('click', function () {
+      var g = gateState();
+      if (!g.open) {
+        toast('兵书志略须常规通关 ' + g.need + ' 名君主方启（今 ' + g.have + ' 位）。' +
+          '常规通关＝该君所有「有定志」之关皆克，末关无定式者不在其数。');
+        return;
+      }
       window.location.href = 'wiki.html';
     });
 
@@ -1787,14 +2126,62 @@
         if (ov.classList.contains('on') && !ov.querySelector('.ending-wrap')) {
           var btn = ov.querySelector('.story-foot .btn.primary, .story-foot .btn');
           if (btn) { btn.click(); }
-        } else if (!ov.classList.contains('on')) { deselect(); clearIntel(); draw(); }
+        } else if (!ov.classList.contains('on')) {
+          if (view.zoom > 1 && !view.selected && !view.inspect) { zoomFit(); }
+          else { cancelAll('已取消选择。'); }
+        }
+      }
+      if (state && !$('overlay').classList.contains('on')) {
+        if (e.key === '+' || e.key === '=') { zoomBy(0.5); }
+        if (e.key === '-' || e.key === '_') { zoomBy(-0.5); }
+        if (e.key === '0') { zoomFit(); }
       }
       if (e.key === 'Enter' && state && !$('overlay').classList.contains('on') && !e.isComposing) {
         endTurn();
       }
     });
 
-    window.addEventListener('resize', function () { if (state) { draw(); } });
+    window.addEventListener('resize', function () {
+      if (!state) { return; }
+      var canvas = $('map');
+      if (view.zoom > 1) { view.pan = root.Render.clampPan(canvas, view.zoom, view.pan); }
+      draw();
+    });
+  }
+
+  /* ————— 通关之识与二志之门 —————
+   * 常规通关＝该君主所有「有定志」之关皆克（末关无定式者不在其数）；完全通关＝连末关亦克。
+   * 下一局之启，与前局之常规通关为准；兵书志略须常规通关三名君主方启；
+   * 匠作志略载实现之事，仅正式版之管理员可见（预览版一概隐藏）。 */
+  function gateState() {
+    var P = root.PROGRESS;
+    if (!P) { return { open: true, have: 0, need: 0, full: 0 }; }
+    var have = P.normalLords().length;
+    return { open: have >= P.WIKI_GATE, have: have, need: P.WIKI_GATE, full: P.completeLords().length };
+  }
+
+  function refreshGates() {
+    var P = root.PROGRESS;
+    var g = gateState();
+    var wg = $('wikiGate');
+    if (wg) { wg.textContent = String(g.have); }
+    var bw = $('btnWiki');
+    if (bw) {
+      bw.classList.toggle('locked', !g.open);
+      bw.setAttribute('aria-disabled', String(!g.open));
+      bw.title = g.open
+        ? '兵书志略：兵制、相克、行军、城池、邦交、剧本、朝局、户口、氏族、剧情与胜负，另有「人物志」。'
+        : '兵书志略须常规通关 ' + g.need + ' 名君主方启（今 ' + g.have + ' 位）。';
+    }
+    var tp = $('titleProgress');
+    if (tp && P) {
+      var tl = P.tally();
+      tp.textContent = tl.total
+        ? ('疆场之记：已克 ' + tl.done + '／' + tl.total + ' 关　常规通关 ' + g.have + ' 君' +
+          (g.full ? '　完全通关 ' + g.full + ' 君' : ''))
+        : '';
+      tp.title = P.lordTally();
+    }
   }
 
   UI.boot = function () {
@@ -1806,12 +2193,7 @@
       vt.title = '第 ' + root.APP_VERSION.version + ' 版　' + root.APP_VERSION.name + '（' + root.APP_VERSION.date + '）\n' +
         root.APP_VERSION.summary;
     }
-    var tp = $('titleProgress');
-    if (tp && root.PROGRESS) {
-      var tl = root.PROGRESS.tally();
-      tp.textContent = tl.total ? ('疆场之记：已克 ' + tl.done + '／' + tl.total + ' 关') : '';
-      tp.title = root.PROGRESS.lordTally();
-    }
+    refreshGates();
     var bc = $('btnContinue');
     if (bc && root.PROGRESS) {
       var lastPlay = root.PROGRESS.last();
@@ -1850,6 +2232,8 @@
     if (root.ACCOUNT) {
       root.ACCOUNT.onChange(function (ev) {
         accountBadge();
+        refreshGates();
+        applyDevLink();
         if (ev === 'maintenance') { showMaintenance(root.ACCOUNT.state().maintenance); }
         else if (ev === 'maintained') {
           hideMaintenance();
@@ -1860,6 +2244,7 @@
       });
       root.ACCOUNT.probe().then(function () {
         accountBadge();
+        applyDevLink();
         if (root.ACCOUNT.isRelease()) {
           root.ACCOUNT.startPolling();
           if (root.ACCOUNT.state().maintenance) { showMaintenance(root.ACCOUNT.state().maintenance); }
@@ -1867,6 +2252,16 @@
       });
     }
   };
+
+  /* 匠作志略之入口：载实现之事，唯正式版之管理员得见 */
+  function applyDevLink() {
+    var a = $('devLink');
+    if (!a || !root.ACCOUNT) { return; }
+    var st = root.ACCOUNT.state() || {};
+    var admin = !!(st.admin || (st.account && st.account.admin));
+    a.hidden = !admin;
+    if (admin) { a.title = '匠作志略：本工程之实现，仅管理员可见。'; }
+  }
   UI.startGame = startGame;
   UI.chooseLord = function (key) { startGame(key); };
   UI.state = function () { return state; };
