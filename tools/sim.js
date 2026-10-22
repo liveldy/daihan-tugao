@@ -1,5 +1,5 @@
 /* 无头推演：在 Node 中加载全部脚本，跑一局，检查引擎是否自洽。
- * 用法：node tools/sim.js [君主key] [回合数]
+ * 用法：node tools/sim.js [君主key] [回合数] [剧本id] [关卡序号，自 0 起]
  */
 'use strict';
 const fs = require('fs');
@@ -9,11 +9,14 @@ const vm = require('vm');
 const ROOT = path.resolve(__dirname, '..');
 const FILES = [
   'src/data/map.js', 'src/data/factions.js',
+  'src/data/scenarios_1.js', 'src/data/scenarios_2.js', 'src/data/scenarios_3.js',
+  'src/data/progress.js',
   'src/data/generals_1.js', 'src/data/generals_2.js', 'src/data/generals_3.js', 'src/data/generals_4.js',
   'src/data/lore.js',
   'src/data/stories_1.js', 'src/data/stories_2.js', 'src/data/stories_3.js',
   'src/data/stories_4.js', 'src/data/stories_5.js', 'src/data/stories_6.js', 'src/data/stories_7.js',
-  'src/core/rules.js', 'src/core/engine.js', 'src/core/story.js', 'src/core/tutor.js', 'src/core/ai.js'
+  'src/core/rules.js', 'src/core/campaign.js', 'src/core/engine.js', 'src/core/story.js',
+  'src/core/tutor.js', 'src/core/ai.js'
 ];
 
 const sandbox = {};
@@ -47,16 +50,21 @@ console.log('武将 ' + Object.keys(generals).length + ' 人；故事线 ' + Obj
 const MAPFACTIONS = sandbox.MAP.FACTIONS;
 const lordKey = process.argv[2] || 'caocao';
 const turns = parseInt(process.argv[3] || '40', 10);
+const scenarioId = process.argv[4] || null;
+const stageIdx = process.argv[5] != null ? parseInt(process.argv[5], 10) : null;
 
 const Eng = sandbox.Engine, Story = sandbox.Story, Rules = sandbox.Rules;
 let st;
 try {
-  st = Eng.newGame({ lord: lordKey, seed: 424242 });
+  st = Eng.newGame({ lord: lordKey, scenario: scenarioId, stage: stageIdx, seed: 424242 });
 } catch (e) {
   console.error('开局失败：' + e.message);
   process.exit(1);
 }
-console.log('开局：' + st.lord.name + ' @ ' + st.era + '，城池 ' + Eng.countCities(st, st.player) +
+console.log('开局：' + st.lord.name + (st.scenario ? '｜' + st.scenario.name : '') +
+  (st.stage ? '｜第 ' + (st.stage.index + 1) + '／' + st.stage.count + ' 关·' + st.stage.name +
+    '｜目标 ' + sandbox.Campaign.goalText(st.stage.goal) : '') + ' @ ' + st.era +
+  '，城池 ' + Eng.countCities(st, st.player) +
   '，部曲 ' + st.units.filter(u => u.faction === st.player).length +
   '，全图势力 ' + Object.keys(st.factions).filter(k => st.factions[k].alive).length);
 
@@ -73,6 +81,7 @@ for (let t = 0; t < turns && st.phase !== 'over'; t++) {
     // 以庙算驱动玩家，检验「集中兵力」能否成一统之业
     sandbox.AI.takeTurn(st, st.player);
     Eng.startTurn(st);
+    if (Eng.checkStage(st)) { st.phase = 'over'; break; }
     st.phase = 'player';
     if (t % 20 === 19) {
       const board = Object.keys(st.factions).filter(k => st.factions[k].alive)

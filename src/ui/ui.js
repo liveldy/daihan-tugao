@@ -8,7 +8,7 @@
   var state = null;
   var view = { selected: null, reachable: [], targets: [], cityTargets: [], inspect: null };
   var tab = 'army';
-  var pick = { group: null, entry: null, lord: null };
+  var pick = { group: null, entry: null, lord: null, scenario: null, stage: 0 };
   var busy = false;
   var mode = 'menu';   // 'menu' | 'play' | 'tutor'
   var tutorStep = 0;
@@ -120,18 +120,127 @@
     });
 
     var lord = pick.lord ? D.LORDS[pick.lord] : null;
-    $('btnStart').disabled = !lord;
-    var eraName = lord && MAP.ERAS[lord.era] ? MAP.ERAS[lord.era].title : (lord ? lord.era : '');
+    pick.scenario = (lord && root.Campaign) ? ((root.Campaign.defaultScenario(pick.lord) || {}).id || null) : null;
+    pick.stage = 0;
+    renderCampaign();
+    syncStart();
+    // 择定君主后，将剧本与关卡一栏带入视野
+    if (pick.lord && pick.lord !== shownLord) {
+      shownLord = pick.lord;
+      var panel = $('campaignPanel');
+      if (panel && !panel.hidden && panel.scrollIntoView) { panel.scrollIntoView({ block: 'nearest' }); }
+    }
+  }
+
+  /* ————— 择局与择关：一君主多剧本，一剧本多关卡 ————— */
+  var CN_NUM = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
+  var shownLord = null;
+
+  function chosenScenario() {
+    var C = root.Campaign;
+    if (!C || !pick.lord) { return null; }
+    return C.scenarioOf(pick.lord, pick.scenario) || C.defaultScenario(pick.lord);
+  }
+
+  function renderCampaign() {
+    var panel = $('campaignPanel');
+    if (!panel) { return; }
+    clear(panel);
+    var C = root.Campaign, P = root.PROGRESS;
+    var list = (C && pick.lord) ? C.scenariosOf(pick.lord) : [];
+    var pk = $('picker');
+    if (pk) { pk.classList.toggle('has-campaign', list.length > 0); }
+    if (!list.length) { panel.hidden = true; return; }
+    panel.hidden = false;
+
+    var total = list.reduce(function (a, s) { return a + s.stages.length; }, 0);
+    var tally = P ? P.tally(pick.lord) : { done: 0, total: total };
+    var head = el('div', 'camp-head');
+    head.appendChild(el('span', 'camp-title', '疆场之记'));
+    head.appendChild(el('span', 'camp-sub',
+      '此君凡 ' + list.length + ' 局 · ' + total + ' 关；已克 ' + tally.done + ' 关。新关随前关之克而启。'));
+    panel.appendChild(head);
+
+    var tabs = el('div', 'scen-tabs');
+    var cur = chosenScenario();
+    list.forEach(function (sc, i) {
+      var open = P ? P.scenarioOpen(pick.lord, sc.id) : true;
+      var b = el('button', 'scen-tab');
+      b.type = 'button';
+      b.disabled = !open;
+      b.setAttribute('aria-pressed', String(!!cur && sc.id === cur.id));
+      b.appendChild(el('b', null, (i + 1) + '· ' + sc.name));
+      b.appendChild(el('span', null, sc.year + '年 · ' +
+        (MAP.ERAS[sc.era] ? MAP.ERAS[sc.era].title : sc.era) + ' · ' + sc.stages.length + ' 关' +
+        (open ? '' : ' · 未启')));
+      b.addEventListener('click', function () {
+        if (!open) { return; }
+        pick.scenario = sc.id; pick.stage = 0;
+        renderCampaign(); syncStart();
+      });
+      tabs.appendChild(b);
+    });
+    panel.appendChild(tabs);
+
+    if (!cur) { return; }
+    var info = el('div', 'scen-info');
+    info.appendChild(el('p', 'scen-blurb', cur.blurb || ''));
+    panel.appendChild(info);
+
+    var wrap = el('div', 'stage-list');
+    cur.stages.forEach(function (st, idx) {
+      wrap.appendChild(stageRow(C, pick.lord, cur, idx, idx === pick.stage ? idx : -1, function () {
+        pick.stage = idx;
+        renderCampaign(); syncStart();
+      }));
+    });
+    panel.appendChild(wrap);
+  }
+
+  /* 一关一行：可战、已克、未启，皆以此为准（择局界面与关卡列表共用） */
+  function stageRow(C, lordKey, sc, idx, curIdx, onPick) {
+    var P = root.PROGRESS;
+    var st = sc.stages[idx];
+    var open = P ? (P.scenarioOpen(lordKey, sc.id) && P.stageOpen(lordKey, sc.id, idx)) : true;
+    var doneN = P ? P.done(lordKey, sc.id) : 0;
+    var row = el('button', 'stage-row' + (idx === curIdx ? ' sel' : '') +
+      (idx < doneN ? ' done' : '') + (open ? '' : ' locked'));
+    row.type = 'button';
+    row.disabled = !open;
+    row.appendChild(el('span', 'no', CN_NUM[idx] || String(idx + 1)));
+    var body = el('span', 'body');
+    body.appendChild(el('b', null, st.name));
+    if (st.desc) { body.appendChild(el('span', 'desc', st.desc)); }
+    body.appendChild(el('span', 'goal', '目标：' + C.goalText(st.goal)));
+    row.appendChild(body);
+    row.appendChild(el('span', 'st', !open ? '未启' : (idx < doneN ? '已克' : '可战')));
+    if (onPick) { row.addEventListener('click', function () { if (open) { onPick(); } }); }
+    return row;
+  }
+
+  function syncStart() {
+    var D = root.FACTIONS_DATA, C = root.Campaign, P = root.PROGRESS;
+    var lord = pick.lord ? D.LORDS[pick.lord] : null;
+    var sc = chosenScenario();
+    var st = (sc && sc.stages[pick.stage]) || null;
+    var locked = !!(C && P && sc && !P.stageOpen(pick.lord, sc.id, pick.stage));
+    $('btnStart').disabled = !lord || locked;
+    var eraName = sc && MAP.ERAS[sc.era] ? MAP.ERAS[sc.era].title : (lord ? lord.era : '');
     $('titleHint').textContent = lord
-      ? (lord.name + ' · ' + lord.year + '年 · ' + eraName + ' · ' + lord.difficultyName + '　' + lord.goal)
-      : '择一君主，观其开局之势。';
+      ? (lord.name + ' · ' + (sc ? sc.name + '（' + sc.year + '年·' + eraName + '）' : lord.year + '年') +
+        ' · ' + lord.difficultyName +
+        (st && C ? '　第 ' + (pick.stage + 1) + ' 关·' + st.name + '　' + (locked ? '未启：前关未克' : '目标：' + C.goalText(st.goal)) : ''))
+      : '择一君主，择一局，择一关，而后受命而起。';
   }
 
   /* ————— 开局 ————— */
   function startGame(lordKey, opts) {
     opts = opts || {};
     var lord = root.FACTIONS_DATA.LORDS[lordKey];
-    state = Eng.newGame({ lord: lordKey, seed: 20260000 + (Date.now() % 9999) });
+    var sid = opts.scenario || pick.scenario || null;
+    var sidx = (opts.stage != null) ? opts.stage : (pick.stage || 0);
+    state = Eng.newGame({ lord: lordKey, scenario: sid, stage: sidx, seed: 20260000 + (Date.now() % 9999) });
+    if (root.PROGRESS && state.scenario) { root.PROGRESS.touch(lordKey, state.scenario.id); }
     mode = opts.tutorial ? 'tutor' : 'play';
     if (mode === 'tutor') { state.tutorial = true; }
     refreshAuras();
@@ -146,7 +255,7 @@
     cv.height = Math.round(1200 * rows / (Math.sqrt(3) * cols));
     $('picker').hidden = true;
     $('mainMenu').hidden = true;
-    toast(lord.name + '受命而起');
+    toast(lord.name + (state.stage ? '·' + state.stage.name : '') + '起');
     draw();
     if (mode === 'tutor') { T().begin(state); }
     else { nextStory(); }
@@ -192,7 +301,24 @@
         res.appendChild(d);
       });
     $('clock').textContent = state.year + '年 · ' + state.eraTitle + ' · 第' + state.turn + '回合 · ' + ['春', '夏', '秋', '冬'][state.seasonIdx];
+    drawObjective();
     renderTab();
+  }
+
+  /* 目标之栏：常驻顶栏，示本关之志与进度 */
+  function drawObjective() {
+    var box = $('objective');
+    if (!box) { return; }
+    var gs = state ? Eng.goalStatus(state) : null;
+    if (!gs) { box.textContent = ''; box.hidden = true; return; }
+    box.hidden = false;
+    clear(box);
+    box.appendChild(el('i', 'no', (state.scenario ? '「' + state.scenario.name + '」' : '') + '第 ' + (gs.index + 1) + '/' + gs.count + '关'));
+    box.appendChild(el('b', null, gs.name));
+    box.appendChild(el('span', 'txt', gs.text));
+    if (gs.progress) { box.appendChild(el('span', 'prog', gs.progress)); }
+    if (gs.met) { box.appendChild(el('span', 'met', '✓ 此志已成，结束回合以定此关')); }
+    box.classList.toggle('open-stage', gs.open);
   }
 
   /* ————— 侧栏 ————— */
@@ -851,28 +977,142 @@
     if (focusTarget) { focusTarget.focus(); }
   }
 
-  /* ————— 结局 ————— */
+  /* ————— 结局：过关、失关、一统 ————— */
+  /* 下一关：本局尚有后关则续之，否则移入次局首关；俱无则 null */
+  function nextStage() {
+    var C = root.Campaign;
+    if (!state || !state.stage || !C || !state.scenario) { return null; }
+    var list = C.scenariosOf(state.lordKey);
+    var sc = C.scenarioOf(state.lordKey, state.scenario.id);
+    if (!sc) { return null; }
+    if (state.stage.index + 1 < sc.stages.length) {
+      return { lord: state.lordKey, scenario: sc.id, index: state.stage.index + 1,
+        name: sc.stages[state.stage.index + 1].name, scenarioName: sc.name };
+    }
+    var nx = list[C.scenarioIndex(state.lordKey, sc.id) + 1];
+    if (nx) {
+      return { lord: state.lordKey, scenario: nx.id, index: 0,
+        name: nx.stages[0].name, scenarioName: nx.name };
+    }
+    return null;
+  }
+
+  function reshoot() {
+    if (!state) { return; }
+    var lordKey = state.lordKey;
+    var sid = state.scenario ? state.scenario.id : null;
+    var idx = state.stage ? state.stage.index : 0;
+    startGame(lordKey, { scenario: sid, stage: idx });
+  }
+
   function showEnding() {
     var ov = $('overlay');
     clear(ov);
-    var win = state.result && state.result.win;
+    var win = !!(state.result && state.result.win);
+    var P = root.PROGRESS, C = root.Campaign;
+    var isStage = !!state.stage;
+    if (win && isStage && P && state.scenario) {
+      P.mark(state.lordKey, state.scenario.id, state.stage.index);
+    }
     var e = Story.endingFor(state);
     var wrap = el('div', 'ending-wrap ' + (win ? 'win' : 'lose'));
-    wrap.appendChild(el('div', 'eyebrow', win ? '一统之业' : '败亡之局'));
-    wrap.appendChild(el('div', 'verdict', (e && e.title) || (win ? '天下混一' : '社稷倾覆')));
-    wrap.appendChild(el('div', 'etext', (e && e.text) || (win ? '海内一统。' : '宗庙不守。')));
+    wrap.appendChild(el('div', 'eyebrow',
+      win ? (isStage ? '第 ' + (state.stage.index + 1) + ' 关已克' : '一统之业') : '败亡之局'));
+    wrap.appendChild(el('div', 'verdict',
+      win ? (isStage ? state.stage.name : ((e && e.title) || '天下混一'))
+        : ((e && e.title) || '社稷倾覆')));
+    wrap.appendChild(el('div', 'etext',
+      win ? (isStage ? (state.stage.desc || '') + '　目标：' + (C ? C.goalText(state.stage.goal) : '')
+        : ((e && e.text) || '海内一统。'))
+        : ((e && e.text) || '宗庙不守。')));
+    if (win && isStage && state.scenario) {
+      var nx = nextStage();
+      wrap.appendChild(el('div', 'etext next-note',
+        nx ? '次关：' + nx.scenarioName + '·' + nx.name : '此君之关，至此而尽。'));
+    }
     var tally = el('div', 'tally');
     [['享国', state.year + '年'], ['回合', state.turn + '回合'], ['拔城', state.stats.citiesTaken],
       ['野战', state.stats.battlesWon], ['斩获', state.stats.kills], ['失城', state.stats.citiesLost]]
       .forEach(function (p) { tally.appendChild(el('span', 'chip', p[0] + ' ' + p[1])); });
     wrap.appendChild(tally);
+
     var foot = el('div', 'story-foot');
-    var again = el('button', 'btn primary', '再举义兵');
-    again.addEventListener('click', function () { location.reload(); });
-    foot.appendChild(again);
+    var nx2 = win && isStage ? nextStage() : null;
+    if (nx2) {
+      var bNext = el('button', 'btn primary', '下一关·' + nx2.name);
+      bNext.addEventListener('click', function () {
+        ov.classList.remove('on'); clear(ov);
+        startGame(nx2.lord, { scenario: nx2.scenario, stage: nx2.index });
+      });
+      foot.appendChild(bNext);
+    }
+    var bAgain = el('button', 'btn' + (nx2 ? '' : ' primary'), isStage ? '重挑战此关' : '再举义兵');
+    bAgain.addEventListener('click', function () {
+      ov.classList.remove('on'); clear(ov);
+      if (isStage) { reshoot(); } else { location.reload(); }
+    });
+    foot.appendChild(bAgain);
+    if (isStage) {
+      var bList = el('button', 'btn', '关卡列表');
+      bList.addEventListener('click', showStages);
+      foot.appendChild(bList);
+    }
+    var bBack = el('button', 'btn', '还于主页面');
+    bBack.addEventListener('click', function () { location.reload(); });
+    foot.appendChild(bBack);
     wrap.appendChild(foot);
     ov.appendChild(wrap);
     ov.classList.add('on');
+    if (foot.firstChild) { foot.firstChild.focus(); }
+  }
+
+  /* ————— 关卡列表：逐关列示，可复挑战，新关随前关之克而启 ————— */
+  function showStages() {
+    if (!state) { return; }
+    var C = root.Campaign, P = root.PROGRESS;
+    if (!C) { return; }
+    var ov = $('overlay');
+    clear(ov);
+    var wrap = el('div', 'story-wrap');
+    var head = el('div', 'story-head');
+    head.appendChild(el('div', 'idx', '疆场之记'));
+    head.appendChild(el('h2', null, state.lord.name + ' · 关卡'));
+    var tl = P ? P.tally(state.lordKey) : { done: 0, total: 0 };
+    head.appendChild(el('div', 'meta', '已克 ' + tl.done + '／' + tl.total + ' 关　今在第 ' +
+      (state.stage ? (state.stage.index + 1) + ' 关·' + state.stage.name : '— 关')));
+    wrap.appendChild(head);
+
+    var body = el('div', 'story-body');
+    var here = state.scenario ? state.scenario.id : null;
+    var hereIdx = state.stage ? state.stage.index : -1;
+    C.scenariosOf(state.lordKey).forEach(function (sc, si) {
+      var open = P ? P.scenarioOpen(state.lordKey, sc.id) : true;
+      var card = el('div', 'card');
+      card.appendChild(el('h3', null, (si + 1) + '· ' + sc.name + '　' + sc.year + '年　' +
+        (MAP.ERAS[sc.era] ? MAP.ERAS[sc.era].title : sc.era)));
+      card.appendChild(el('p', 'sub', sc.blurb || ''));
+      if (!open) { card.appendChild(el('p', 'sub', '前局未竟，此局未启。')); }
+      var list = el('div', 'stage-list');
+      sc.stages.forEach(function (st, idx) {
+        list.appendChild(stageRow(C, state.lordKey, sc, idx,
+          (sc.id === here && idx === hereIdx) ? idx : -1, function () {
+            ov.classList.remove('on'); clear(ov);
+            startGame(state.lordKey, { scenario: sc.id, stage: idx });
+          }));
+      });
+      card.appendChild(list);
+      body.appendChild(card);
+    });
+    wrap.appendChild(body);
+
+    var foot = el('div', 'story-foot');
+    var b = el('button', 'btn', '退');
+    b.addEventListener('click', function () { ov.classList.remove('on'); clear(ov); });
+    foot.appendChild(b);
+    wrap.appendChild(foot);
+    ov.appendChild(wrap);
+    ov.classList.add('on');
+    b.focus();
   }
 
   /* ————— 庙堂：邦交与诏书 ————— */
@@ -1043,6 +1283,7 @@
     });
     if ($('btnLorePreview')) { $('btnLorePreview').addEventListener('click', showLorePreview); }
     $('btnCourt').addEventListener('click', showCourt);
+    if ($('btnStages')) { $('btnStages').addEventListener('click', showStages); }
 
     /* —— 主页面三入口 —— */
     $('btnCampaign').addEventListener('click', function () {
@@ -1066,10 +1307,11 @@
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') {
         var ov = $('overlay');
-        if (ov.classList.contains('on')) {
+        // 结局与过关之屏不因 ESC 而误触（免得误按「重挑战」）
+        if (ov.classList.contains('on') && !ov.querySelector('.ending-wrap')) {
           var btn = ov.querySelector('.story-foot .btn.primary, .story-foot .btn');
           if (btn) { btn.click(); }
-        } else { deselect(); clearIntel(); draw(); }
+        } else if (!ov.classList.contains('on')) { deselect(); clearIntel(); draw(); }
       }
       if (e.key === 'Enter' && state && !$('overlay').classList.contains('on') && !e.isComposing) {
         endTurn();
@@ -1087,6 +1329,39 @@
       vt.textContent = 'v' + root.APP_VERSION.version;
       vt.title = '第 ' + root.APP_VERSION.version + ' 版　' + root.APP_VERSION.name + '（' + root.APP_VERSION.date + '）\n' +
         root.APP_VERSION.summary;
+    }
+    var tp = $('titleProgress');
+    if (tp && root.PROGRESS) {
+      var tl = root.PROGRESS.tally();
+      tp.textContent = tl.total ? ('疆场之记：已克 ' + tl.done + '／' + tl.total + ' 关') : '';
+      tp.title = root.PROGRESS.lordTally();
+    }
+    var bc = $('btnContinue');
+    if (bc && root.PROGRESS) {
+      var lastPlay = root.PROGRESS.last();
+      if (lastPlay) {
+        var lastLord = root.FACTIONS_DATA.LORDS[lastPlay.lord];
+        bc.hidden = false;
+        bc.textContent = '续战·' + (lastLord ? lastLord.name : lastPlay.lord) + '·' + lastPlay.stageName;
+        bc.addEventListener('click', function () {
+          $('mainMenu').hidden = true;
+          $('picker').hidden = false;
+          $('btnPickBack').hidden = false;
+          var ent = root.FACTIONS_DATA.ENTRIES.filter(function (e) {
+            return e.lords.indexOf(lastPlay.lord) >= 0;
+          })[0];
+          if (ent) { pick.group = ent.group; }
+          pick.lord = lastPlay.lord;
+          pick.scenario = lastPlay.scenario;
+          pick.stage = lastPlay.index;
+          buildTitle();
+          var panel = $('campaignPanel');
+          if (panel && panel.scrollIntoView) { panel.scrollIntoView({ block: 'nearest' }); }
+          pick.scenario = lastPlay.scenario;
+          pick.stage = lastPlay.index;
+          renderCampaign(); syncStart();
+        });
+      }
     }
     if (root.Tutor) {
       root.Tutor.onEvent(function (ev) {

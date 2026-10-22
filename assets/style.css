@@ -161,6 +161,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .title-hero .sub { margin-top: 8px; font-size: 13px; color: var(--muted); letter-spacing: .16em; }
 .title-hero .quote { margin: 16px auto 0; max-width: 34em; font-size: 13px; color: var(--muted); }
 .picker { display: grid; grid-template-columns: 190px 1fr; min-height: 300px; }
+.picker.has-campaign .groups, .picker.has-campaign .entries { max-height: 30vh; }
+.picker.has-campaign .campaign { max-height: 42vh; }
 .groups { border-right: 1px solid var(--line); background: var(--panel); padding: 10px 8px; overflow-y: auto; max-height: 52vh; }
 .groups button {
   display: block; width: 100%; text-align: left; min-height: 40px; padding: 6px 10px;
@@ -336,3 +338,41 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .ver { font-family: var(--mono); font-size: 11.5px; color: var(--faint); white-space: nowrap; cursor: help; }
 @media (max-width: 900px) { .wiki-shell { grid-template-columns: 1fr; } .wiki-nav { border-right: 0; border-bottom: 1px solid var(--line); } }
 
+
+/* ——— 剧本与关卡：一君主多剧本，一剧本多关卡 ——— */
+.campaign { grid-column: 1 / -1; border-top: 1px solid var(--line); background: var(--panel); padding: 12px 14px; max-height: 46vh; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
+.camp-head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; margin-bottom: 8px; }
+.camp-head .camp-title { font-family: var(--serif); font-size: 15px; letter-spacing: .12em; }
+.camp-head .camp-title::before { content: "·"; color: var(--accent); margin-right: 6px; }
+.camp-head .camp-sub { font-size: 12px; color: var(--muted); }
+.scen-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.scen-tab { display: grid; gap: 2px; text-align: left; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); color: var(--ink); cursor: pointer; font-family: var(--serif); }
+.scen-tab:hover:not([disabled]) { border-color: var(--line-strong); }
+.scen-tab[aria-pressed="true"] { border-color: var(--accent); background: #fff8ef; }
+.scen-tab[disabled] { opacity: .5; cursor: not-allowed; }
+.scen-tab b { font-size: 14px; font-weight: 500; }
+.scen-tab span { font-size: 11.5px; color: var(--faint); }
+.scen-blurb { margin: 0 0 10px; font-size: 12.5px; color: var(--muted); max-width: 64em; }
+.stage-list { display: grid; gap: 8px; }
+.stage-row { display: grid; grid-template-columns: 30px 1fr auto; gap: 10px; align-items: start; text-align: left; padding: 9px 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); color: var(--ink); cursor: pointer; font-family: var(--sans); }
+.stage-row:hover:not([disabled]) { border-color: var(--line-strong); }
+.stage-row.sel { border-color: var(--accent); background: #fff8ef; }
+.stage-row.locked { opacity: .55; cursor: not-allowed; }
+.stage-row .no { font-family: var(--serif); font-size: 15px; color: var(--accent-deep); text-align: center; padding-top: 1px; }
+.stage-row.done .no { color: var(--live); }
+.stage-row .body { display: grid; gap: 3px; min-width: 0; }
+.stage-row .body b { font-size: 14px; font-weight: 500; }
+.stage-row .body .desc { font-size: 12.5px; color: var(--muted); }
+.stage-row .body .goal { font-size: 12px; color: var(--accent-deep); }
+.stage-row .st { font-size: 11.5px; color: var(--faint); white-space: nowrap; padding-top: 2px; }
+.stage-row.done .st { color: var(--live); }
+
+/* 顶栏常驻之本关目标 */
+.objective { display: flex; gap: 8px; align-items: baseline; font-size: 12.5px; color: var(--muted); max-width: 48ch; overflow: hidden; }
+.objective .no { font-style: normal; color: var(--faint); font-size: 11.5px; white-space: nowrap; }
+.objective b { color: var(--ink); font-weight: 500; white-space: nowrap; }
+.objective .txt, .objective .prog, .objective .met { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.objective .prog { font-family: var(--mono); font-size: 11px; color: var(--faint); }
+.objective .met { color: var(--live); }
+.objective.open-stage .txt { color: var(--faint); }
+.ending-wrap .next-note { margin-top: 6px; color: var(--accent-deep); font-size: 13px; }

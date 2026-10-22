@@ -23,7 +23,7 @@ window.DEV = {
           ],
           list: [
             "index.html —— 主页面（承天受命／演武教战）与对局界面",
-            "wiki.html —— 兵书志略（玩法；本志九门八十二条，页面另有「人物志」一串，由武将数据自动编次）",
+            "wiki.html —— 兵书志略（玩法；本志十门八十八条，页面另有「人物志」一串，由武将数据自动编次）",
             "dev.html —— 匠作志略（本页，制作与实现）"
           ],
           note: "三页互达：主页面「兵书志略」入口通 wiki.html；wiki 页顶栏有「匠作志略」一链通本页；本页顶栏有「兵书志略」与「返回游戏」。",
@@ -46,15 +46,18 @@ window.DEV = {
               ["VERSION", "版本号（四段，单行）——与 version.js、CHANGELOG.md 三者须一致"],
               ["CHANGELOG.md", "改易之目：每版一条，最新者在上"],
               ["src/data/version.js", "版本数据：号、期、名、一句提要、版本之法"],
-              ["src/data/map.js", "舆图：30×20 格正六边形地形、96 座城池、25 家势力（含无主）、8 个剧本与其归属"],
+              ["src/data/map.js", "舆图：30×20 格正六边形地形、96 座城池、25 家势力（含无主）、10 个剧本与其归属"],
               ["src/data/factions.js", "六组十五家二十六君主、各人国策"],
+              ["src/data/scenarios_1..3.js", "剧本与关卡数据（分三册）：逐君之局与逐局之关"],
+              ["src/data/progress.js", "关卡进度：已克之关与续战之记，存于浏览器本地"],
               ["src/data/generals_1..4.js", "武将文臣（分卷）"],
               ["src/data/lore.js", "典籍条目"],
               ["src/data/stories_1..7.js", "二十六条故事线（章回、台词、内心、史注、抉择、成败结局）"],
               ["src/data/wiki.js", "兵书志略条文（玩法）"],
               ["src/data/dev.js", "匠作志略条文（本页）"],
               ["src/core/rules.js", "兵制、地形、相克、伤害与行军"],
-              ["src/core/engine.js", "回合、征募、行军、野战、攻城、邦交、事件、胜负"],
+              ["src/core/campaign.js", "剧本与关卡之编次：取局、取关、目标之文与目标之判定"],
+              ["src/core/engine.js", "回合、征募、行军、野战、攻城、邦交、事件、胜负、关卡之定"],
               ["src/core/story.js", "剧情触发与效果"],
               ["src/core/tutor.js", "教战之场：教学十步"],
               ["src/core/ai.js", "诸侯庙算"],
@@ -76,8 +79,8 @@ window.DEV = {
             "index.html 之末按此序加载，先数据、次规则、再界面、终入口。rules.js 与 engine.js 在载入时即取 window.MAP、window.FACTIONS_DATA 之值，故次序一乱即报错。"
           ],
           list: [
-            "一、数据：map.js → factions.js → generals_1..4.js → lore.js → stories_1..7.js → wiki.js／dev.js",
-            "二、规则：rules.js → engine.js → story.js → tutor.js → ai.js",
+            "一、数据：map.js → factions.js → scenarios_1..3.js → progress.js → generals_1..4.js → lore.js → stories_1..7.js → wiki.js／dev.js",
+            "二、规则：rules.js → campaign.js → engine.js → story.js → tutor.js → ai.js",
             "三、界面：art.js → render.js → ui.js",
             "四、入口：main.js"
           ],
@@ -110,11 +113,11 @@ window.DEV = {
             "数据文件写 window.XXX = { … }，不用 ESM；字符串内不得出现 script 的结束标签，否则标签提前闭合、整页皆废",
             "Node 下校验数据，须先造环境 sandbox.window = sandbox，再以 vm.runInContext 执行，否则取不到 window.XXX",
             "城池 id 只能取 src/data/map.js 中 96 个之一；舆图格上的 tile.city 是对象而非 id 字符串，取其 id 须用 tile.city.id（此处曾抛 TypeError 致敌情牌截断）",
-            "舆图点击须按 canvas.width / rect.width 换算：画布内部为 1200×693（六边形外框之宽高比所定），屏上被 CSS 缩放，径用 clientX 会误判格子",
+            "舆图点击须按 canvas.width / rect.width 换算：画布内部为 1200×694（六边形外框之宽高比所定），屏上被 CSS 缩放，径用 clientX 会误判格子",
             "舆图为尖顶正六边形、奇数行右移半格。邻接与距离只可取自 MAP.neighbors／MAP.dist，不得再用 |dx|+|dy|：四邻写法在本图上是错的（斜向四格亦相邻），且六边距离须先化轴向坐标再取立方距离",
             "兵种数值键有白名单（见「技能数值键白名单」）；白名单外之键虽载于数据，引擎不取",
             "剧情 effect 亦有白名单（见「剧情效果」）；enemyTroops 取负数；{ lost: … } 之写法引擎未实现、永不触发",
-            "行尾不一：src/data/wiki.js 等为 CRLF，其余多为 LF；以脚本改写文件时须留意"
+            "行尾不一：src/data/stories_7.js 与 tools/sim.js 为 CRLF，其余皆 LF（.gitattributes 定 eol=lf，入库即归一）；以脚本改写文件时须留意"
           ],
           src: "src/core/story.js · applyEffect；src/ui/render.js · hit；tools/validate.js"
         }
@@ -135,8 +138,11 @@ window.DEV = {
           table: {
             head: ["文件", "顶层键", "内容"],
             rows: [
-              ["src/data/map.js", "MAP", "W／H／grid（30×20 格正六边形）、TERRAIN、CITIES（96）、FACTIONS（25）、ERAS（9）、ownersOf、neighbors／dist（六邻与六边距离）"],
-              ["src/data/factions.js", "FACTIONS_DATA", "GROUPS（6）、ENTRIES（15）、LORDS（25）、MECHS（国策）"],
+              ["src/data/map.js", "MAP", "W／H／grid（30×20 格正六边形）、TERRAIN、CITIES（96）、FACTIONS（25）、ERAS（10）、ownersOf、neighbors／dist（六邻与六边距离）"],
+              ["src/data/factions.js", "FACTIONS_DATA", "GROUPS（6）、ENTRIES（15）、LORDS（26）、MECHS（国策）"],
+              ["src/data/scenarios_1..3.js", "CAMPAIGNS／CAMPAIGNS_PART1..3", "剧本与关卡：剧本（id、name、era、year、blurb、stages[]）与关卡（id、name、desc、goal）"],
+              ["src/data/progress.js", "PROGRESS", "关卡进度：done／mark／touch／last／stageOpen／scenarioOpen／tally／lordTally／reset，存于 localStorage"],
+              ["src/core/campaign.js", "Campaign", "编次与判定：all／forLord／scenariosOf／scenarioOf／defaultScenario／scenarioIndex／stageOf／stageCount／goalText／goalMet／goalProgress／countOwn"],
               ["src/data/generals_1..4.js", "GENERALS／GENERALS_PART1..4", "武将文臣，按 faction 分组"],
               ["src/data/lore.js", "LORE", "典籍六类条目"],
               ["src/data/stories_1..7.js", "STORIES／STORIES_PART1..7", "故事线、章回、抉择、成败结局"],
@@ -144,8 +150,8 @@ window.DEV = {
               ["src/data/dev.js", "DEV", "匠作志略条文（本页）"]
             ]
           },
-          note: "武将分成四卷、故事线分成七卷，只为文件大小与分工；载入后由 tools/validate.js 与 src/core/engine.js 的 allGenerals()／src/core/story.js 的 allStories() 合并为一体。",
-          src: "src/data/*.js；src/core/engine.js · allGenerals；src/core/story.js · allStories"
+          note: "武将分成四卷、故事线分成七卷、剧本分成三册，只为文件大小与分工；载入后由 tools/validate.js 与 src/core/engine.js 的 allGenerals()／src/core/story.js 的 allStories()／src/core/campaign.js 的 Campaign.all() 合并为一体。",
+          src: "src/data/*.js；src/core/engine.js · allGenerals；src/core/story.js · allStories；src/core/campaign.js · all"
         },
         {
           id: "schema",
@@ -162,6 +168,7 @@ window.DEV = {
               ["地形格", "x、y、ch（图例符）、terrain（key）、terrainName、terrainCost、terrainDef、terrainAtk、land、sea、city"],
               ["势力", "name、long、color"],
               ["剧本（era）", "year、title、era（年号）、归属表"],
+              ["剧本与关卡", "剧本：id（君主key_年）、name、era、year、blurb、stages[]；关卡：id、name、desc、goal{cities／factions／minCities／turns／unify／open}（末关只作 open）"],
               ["君主", "name、zi、title、era、faction、capital（须属本势力）、difficulty、difficultyName、mech、tag、intro、goal"],
               ["国策（mech）", "name、desc（引擎另有专判者唯 zhaoshu／renyi）"],
               ["故事线", "id（即君主 key）、group、entry、title、chapters[]、endings{win lose}"],
@@ -429,12 +436,29 @@ window.DEV = {
               ["主页面三入口与教战之场", "index.html · mainMenu；src/core/tutor.js；wiki.html"],
               ["择主与开局", "src/ui/ui.js · buildTitle／startGame；src/core/engine.js · newGame"],
               ["择主牌面所载", "src/data/factions.js · GROUPS／ENTRIES／LORDS"],
-              ["顶栏", "src/ui/ui.js · draw（resources 与 clock）"],
+              ["顶栏", "src/ui/ui.js · draw（resources 与 clock）／drawObjective（本关目标之栏）"],
               ["舆图与三色", "src/ui/ui.js · onTile／select／hint；src/ui/render.js · draw／hit"],
               ["侧栏五页签", "src/ui/ui.js · renderTab／renderArmy／renderCity／renderWho／renderBook／renderLog"],
               ["一回合为一季，四时成岁", "src/core/engine.js · startTurn／endTurn／maybeWanderers"],
               ["胜负条件", "src/core/engine.js · captureCity／checkDefeat；src/ui/ui.js · showEnding"],
               ["键位与鼠标", "src/ui/ui.js · wire（keydown／contextmenu）"]
+            ]
+          },
+          "src": "由原 wiki 各条之实现注释汇编"
+        },
+        {
+          "id": "impl-stages",
+          "title": "剧本与关卡",
+          "body": ["「兵书志略」剧本与关卡一门诸条，其实现位置如下。"],
+          "table": {
+            "head": ["兵书志略之条目", "实现位置"],
+            "rows": [
+              ["一君多局，一局多关", "src/data/scenarios_1..3.js（分三册）；src/core/campaign.js · all／forLord／scenariosOf／scenarioOf／defaultScenario／scenarioIndex；src/ui/ui.js · renderCampaign／chosenScenario"],
+              ["逐关之志", "src/core/campaign.js · goalText／goalMet／goalProgress；src/core/engine.js · checkStage／goalStatus"],
+              ["末关无定式", "src/core/engine.js · checkStage（open 者不判）与 captureCity（尽有全图则一统）；tools/validate.js 逐局核其末关"],
+              ["过关与解锁", "src/core/engine.js · endTurn（checkStage 于季末判定）；src/data/progress.js · mark／stageOpen／scenarioOpen；src/ui/ui.js · showEnding／nextStage／reshoot"],
+              ["目标之栏与关卡列表", "src/ui/ui.js · drawObjective／showStages／stageRow／syncStart；index.html（objective／btnStages／campaignPanel）；assets/style.css（疆场之记与关卡列表之样式）"],
+              ["进度存于浏览器本地", "src/data/progress.js · KEY／last／tally／lordTally；src/ui/ui.js · UI.boot（titleProgress／btnContinue）"]
             ]
           },
           "src": "由原 wiki 各条之实现注释汇编"
@@ -563,7 +587,7 @@ window.DEV = {
             "rows": [
               ["分组一览", "src/data/factions.js · GROUPS／ENTRIES"],
               ["二十六主一览", "src/data/factions.js · LORDS；src/data/map.js · ERAS"],
-              ["九个剧本", "src/data/map.js · ERAS／ownersOf"],
+              ["十个剧本", "src/data/map.js · ERAS／ownersOf；src/data/scenarios_1..3.js（逐君之局）；src/core/campaign.js · scenariosOf"],
               [
                 "黄巾·张角（新增一组）",
                 "src/data/generals_4.js（黄巾诸将）；src/data/stories_7.js（张角故事线）；src/data/map.js（huangjin 与 e184／e194 归属）"
@@ -592,7 +616,7 @@ window.DEV = {
               ["粮草为负会怎样", "src/core/engine.js · startTurn（upkeep）"],
               ["怎么拜将", "src/core/engine.js · assignGeneral；src/ui/ui.js · renderArmy"],
               ["在野之士怎么征辟", "src/core/engine.js · recruitGeneral／diplomacy（edictCall）／captureCity／killUnit"],
-              ["存档在哪", "src/ui/ui.js（无任何存储调用）；index.html"],
+              ["存档在哪", "src/data/progress.js（KEY 与 localStorage，只记关卡进度）；src/ui/ui.js · UI.boot（titleProgress／btnContinue）；对局本身无存储"],
               ["能不能中途换君主", "src/ui/ui.js · startGame（一次载入）／showEnding"],
               ["城池为什么攻不下", "src/core/engine.js · attackCity／startTurn（守备恢复）"],
               ["我的部曲为何一下就残了", "src/core/rules.js · damage／statsOf；src/ui/ui.js · 预判处"],
@@ -624,8 +648,8 @@ window.DEV = {
           ],
           list: [
             "命令：node tools/validate.js",
-            "所校之目：舆图尺寸与城池／势力数、各剧本 96 城归属齐备、可择之君与分组条目数、武将人数与技能白名单、典籍分类、故事线章回与场景／抉择数、君主首府须属本势力、武将 id 跨卷不重、wiki 与 dev 之结构（门／条／id 唯一／表格行列齐整）",
-            "末以全 25 主各推演 12 回合，验引擎自洽"
+            "所校之目：舆图尺寸与城池／势力数、各剧本 96 城归属齐备、可择之君与分组条目数、武将人数与技能白名单、典籍分类、故事线章回与场景／抉择数、君主首府须属本势力、武将 id 跨卷不重、剧本与关卡（逐局之末关须为开放型、目标之城池与势力须合于该剧本、逐关解锁与逐局解锁、过关判定与续战之记）、wiki 与 dev 之结构（门／条／id 唯一／表格行列齐整）",
+            "末以全 26 主各推演 12 回合，验引擎自洽；另将二百七十二关逐一开局，核其起而载明本关之志"
           ],
           note: "新增数据后必跑一次；校验通过是本作交付的底线。",
           src: "tools/validate.js"
@@ -637,9 +661,10 @@ window.DEV = {
             "tools/sim.js 在 Node 中加载全部脚本，跑一局并把每年之局势打出来，用于平衡调整与回归测试。"
           ],
           list: [
-            "node tools/sim.js caocao 40 —— 以曹操自动推演 40 回合",
+            "node tools/sim.js caocao 40 —— 以曹操自动推演 40 回合（其默认之局与其首关）",
+            "node tools/sim.js caocao 40 caocao_hanzhong 3 —— 指定剧本与关卡（第四为关卡序号，自 0 起）",
             "SIM_AI_PLAYER=1 node tools/sim.js zhangjiao 260 —— 连玩家一方也交由庙算，自中平元年推演 260 回合",
-            "参数：第一为君主 key，第二为回合数"
+            "参数：第一为君主 key，第二为回合数，第三为剧本 id，第四为关卡序号（后二者可省）"
           ],
           src: "tools/sim.js"
         },
@@ -776,10 +801,12 @@ window.DEV = {
               ["titleScreen", "主页面叠层（三入口、择主区、底栏）"],
               ["mainMenu / btnCampaign / btnTutorial / btnWiki", "三入口及各自动作"],
               ["picker / groupList / entryList", "择主区：分组列、条目牌与君主按钮"],
-              ["titleHint / btnPickBack / btnLorePreview / titleVer / btnStart", "择主底栏（含版本号）"],
+              ["campaignPanel", "择主区之下「疆场之记」：剧本标签（局名、年份、史事、关数）与本局诸关之列表"],
+              ["titleHint / titleProgress / btnContinue / btnPickBack / btnLorePreview / titleVer / btnStart", "择主底栏：提示（含所择之局与关及其志）、全局进展与「续战」、返回、典籍、版本号、受命而起"],
               ["topbar / clock / resources", "对局顶栏：纪年与五项资源"],
-              ["btnCourt / btnEndTurn", "庙堂、结束回合"],
-              ["main / map", "主区与舆图画布（内部 1200×693，六边形外框宽高比所定）"],
+              ["objective", "本关目标之栏（所战之局、第几关、关名、本关之志与进度）"],
+              ["btnStages / btnCourt / btnEndTurn", "关卡列表、庙堂、结束回合"],
+              ["main / map", "主区与舆图画布（内部 1200×694，六边形外框宽高比所定）"],
               ["intel", "敌情浮牌（舆图左上）"],
               ["tutor", "教战面板（舆图右下）"],
               ["hint", "向外提示一行"],
@@ -795,7 +822,7 @@ window.DEV = {
           id: "canvas",
           title: "舆图绘制与点击换算",
           body: [
-            "舆图为单个 canvas，格为正六边形（尖顶、奇数行右移半格）。内部尺寸由外框宽高比定：宽 = (W + 0.5)·√3·s，高 = ((H − 1)·1.5 + 2)·s；W=30、H=20 时即 1200×693。屏上以 CSS 满宽缩放，故屏上所见与实际像素不一。",
+            "舆图为单个 canvas，格为正六边形（尖顶、奇数行右移半格）。内部尺寸由外框宽高比定：宽 = (W + 0.5)·√3·s，高 = ((H − 1)·1.5 + 2)·s；W=30、H=20、宽取 1200 时算出高为 693，而画布元素定为 1200×694，余一像素由纵向居中（oy）吸收。屏上以 CSS 满宽缩放，故屏上所见与实际像素不一。",
             "布局只由 src/ui/render.js · layout 一处算出：s（外接圆半径）、w（横向对边距 = √3s）、h（纵向对角距 = 2s）、ystep（行距 = 1.5s）与左上原点 ox／oy。格心用 center、格形用 hexPath、州名水印用城池重心经 center 折算。",
             "点击换算须按 canvas.width / rect.width 求得比例，折回内部像素后交 tileAtPixel：先以格心 (0,0) 为原点化出轴向坐标 (q, r)，再作立方取整（cube round），最后回推偏置坐标得 col、row。若径用 clientX，画布被缩小时点击会落在错误的格上；若沿用方格时代的「除以格宽取整」，则斜向命中全错。"
           ],

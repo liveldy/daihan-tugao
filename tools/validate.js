@@ -10,12 +10,15 @@ const ROOT = path.resolve(__dirname, '..');
 const FILES = [
   'src/data/version.js',
   'src/data/map.js', 'src/data/factions.js',
+  'src/data/scenarios_1.js', 'src/data/scenarios_2.js', 'src/data/scenarios_3.js',
+  'src/data/progress.js',
   'src/data/generals_1.js', 'src/data/generals_2.js', 'src/data/generals_3.js', 'src/data/generals_4.js',
   'src/data/lore.js',
   'src/data/stories_1.js', 'src/data/stories_2.js', 'src/data/stories_3.js',
   'src/data/stories_4.js', 'src/data/stories_5.js', 'src/data/stories_6.js', 'src/data/stories_7.js',
   'src/data/wiki.js', 'src/data/dev.js',
-  'src/core/rules.js', 'src/core/engine.js', 'src/core/story.js', 'src/core/tutor.js', 'src/core/ai.js'
+  'src/core/rules.js', 'src/core/campaign.js', 'src/core/engine.js', 'src/core/story.js',
+  'src/core/tutor.js', 'src/core/ai.js'
 ];
 
 const errs = [];
@@ -27,6 +30,13 @@ sandbox.globalThis = sandbox;
 sandbox.window = sandbox;
 sandbox.console = console;
 sandbox.Math = Math; sandbox.Date = Date; sandbox.JSON = JSON;
+/* 关卡进度用浏览器本地存储；此处以内存代之，期末另作断言 */
+const memStore = {};
+sandbox.localStorage = {
+  getItem: k => (k in memStore ? memStore[k] : null),
+  setItem: (k, v) => { memStore[k] = String(v); },
+  removeItem: k => { delete memStore[k]; }
+};
 const ctx = vm.createContext(sandbox);
 
 for (const f of FILES) {
@@ -324,6 +334,151 @@ checkDoc('匠作志略', sandbox.DEV, false);
     + ' 人、势力 ' + Object.keys(perFac).length + ' 家、技能 ' + skills + ' 条，表 ' + cols + ' 列');
 })();
 
+
+/* —— 剧本与关卡：一君主多剧本，一剧本多关卡，末关为开放型 —— */
+const Camp = sandbox.Campaign, PROG = sandbox.PROGRESS;
+const GOAL_KEYS = ['cities', 'factions', 'minCities', 'turns', 'unify', 'open'];
+if (!Camp) { errs.push('缺 Campaign 模块'); }
+else {
+  const seenScen = new Set(), seenStage = new Set();
+  let nScen = 0, nStage = 0, nOpen = 0;
+  lordKeys.forEach(k => {
+    const list = Camp.scenariosOf(k);
+    if (!list.length) { errs.push('君主 ' + LORDS[k].name + ' 无剧本'); return; }
+    const eras = new Set();
+    list.forEach(sc => {
+      nScen++;
+      if (!/^[a-z][a-z0-9_]*$/.test(sc.id)) { errs.push('剧本 id 非法：' + sc.id); }
+      if (seenScen.has(sc.id)) { errs.push('剧本 id 重复：' + sc.id); }
+      seenScen.add(sc.id);
+      if (!sc.name || !sc.blurb) { errs.push('剧本 ' + sc.id + ' 缺 name 或 blurb'); }
+      if (!MAP.ERAS[sc.era]) { errs.push('剧本 ' + sc.id + ' 的 era 不存在：' + sc.era); }
+      else if (MAP.ERAS[sc.era].year !== sc.year) {
+        errs.push('剧本 ' + sc.id + ' 的 year ' + sc.year + ' 与 era ' + sc.era + '（' + MAP.ERAS[sc.era].year + '）不符');
+      }
+      if (eras.has(sc.era)) { errs.push('君主 ' + LORDS[k].name + ' 重复使用剧本 ' + sc.era); }
+      eras.add(sc.era);
+      if (!Array.isArray(sc.stages) || sc.stages.length < 3) { errs.push('剧本 ' + sc.id + ' 关卡少于三关'); return; }
+      const own = MAP.ownersOf(sc.era);
+      const mine = Object.values(own).filter(f => f === LORDS[k].faction).length;
+      if (mine === 0) { errs.push('君主 ' + LORDS[k].name + ' 于剧本 ' + sc.id + '（' + sc.era + '）无城，开局即亡'); }
+      sc.stages.forEach((stg, idx) => {
+        nStage++;
+        if (!/^[a-z][a-z0-9_]*$/.test(stg.id)) { errs.push('关卡 id 非法：' + stg.id); }
+        if (seenStage.has(stg.id)) { errs.push('关卡 id 重复：' + stg.id); }
+        seenStage.add(stg.id);
+        if (!stg.name) { errs.push('关卡 ' + stg.id + ' 无名称'); }
+        const g = stg.goal || {};
+        Object.keys(g).forEach(key => {
+          if (GOAL_KEYS.indexOf(key) < 0) { errs.push('关卡 ' + stg.id + ' 含未知目标字段 ' + key); }
+        });
+        if (g.open && Object.keys(g).length > 1) { errs.push('关卡 ' + stg.id + ' 开放型夹杂其它目标'); }
+        if (!g.open && Object.keys(g).length === 0) { errs.push('关卡 ' + stg.id + ' 无目标且非开放型'); }
+        if (g.cities) {
+          g.cities.forEach(c => {
+            if (!MAP.CITY_INDEX[c]) { errs.push('关卡 ' + stg.id + ' 之城不存在：' + c); }
+            else if (own[c] === LORDS[k].faction) { errs.push('关卡 ' + stg.id + ' 之城 ' + c + ' 开局已属本势力'); }
+          });
+        }
+        if (g.factions) {
+          g.factions.forEach(f => {
+            if (!MAP.FACTIONS[f]) { errs.push('关卡 ' + stg.id + ' 之势力不存在：' + f); }
+            else if (f === LORDS[k].faction) { errs.push('关卡 ' + stg.id + ' 以本势力为目标'); }
+            else if (Object.values(own).indexOf(f) < 0) { errs.push('关卡 ' + stg.id + ' 之势力 ' + f + ' 在该剧本无城'); }
+          });
+        }
+        if (g.minCities != null && (g.minCities <= mine || g.minCities >= 96)) {
+          errs.push('关卡 ' + stg.id + ' 的 minCities ' + g.minCities + ' 不合（本势力开局 ' + mine + ' 城）');
+        }
+        if (g.turns != null && (g.turns < 8 || g.turns > 200)) { errs.push('关卡 ' + stg.id + ' 的 turns ' + g.turns + ' 不合'); }
+      });
+      const last = sc.stages[sc.stages.length - 1];
+      if (!last.goal || !last.goal.open) { errs.push('剧本 ' + sc.id + ' 之末关非开放型'); } else { nOpen++; }
+      sc.stages.slice(0, -1).forEach(s => {
+        if (s.goal && s.goal.open) { errs.push('剧本 ' + sc.id + ' 之非末关为开放型：' + s.id); }
+      });
+    });
+  });
+  ok.push('剧本 ' + nScen + ' 局，关卡 ' + nStage + ' 关（开放型末关 ' + nOpen + ' 关），逐关皆有目标且依史有据');
+
+  /* 逐关开局：每位君主·每一局·每一关皆能起局且有城 */
+  const noCity = [];
+  let opened = 0;
+  lordKeys.forEach(k => Camp.scenariosOf(k).forEach(sc => sc.stages.forEach((stg, idx) => {
+    try {
+      const s = Eng.newGame({ lord: k, scenario: sc.id, stage: idx, seed: 777 });
+      if (Eng.countCities(s, s.player) === 0) { noCity.push(k + '/' + sc.id + '#' + (idx + 1)); }
+      if (!s.stage || s.stage.id !== sc.stages[idx].id) { errs.push('开局所载之关不符：' + k + '/' + sc.id + '#' + (idx + 1)); }
+      opened++;
+    } catch (e) { errs.push('关卡开局失败 ' + k + '/' + sc.id + '#' + (idx + 1) + '：' + e.message); }
+  })));
+  ok.push('逐关开局 ' + opened + ' 关，皆起而载明本关之志');
+  if (noCity.length) { errs.push('开局无城之关 ' + noCity.length + ' 处：' + noCity.slice(0, 8).join('、')); }
+
+  /* 目标判定之算：取一「仅以取城为目」之关，尽取其城则应过关
+   * （以 checkStage 直接判定：AI 当回合可能夺回目标城，走 endTurn 则结果不稳） */
+  try {
+    let found = null;
+    lordKeys.some(k => Camp.scenariosOf(k).some(sc => sc.stages.some((s, i) => {
+      if (i >= sc.stages.length - 1) { return false; }
+      const g = s.goal || {};
+      if (Object.keys(g).length === 1 && g.cities && g.cities.length) {
+        found = { lord: k, sc: sc, stg: s, idx: i }; return true;
+      }
+      return false;
+    })));
+    if (!found) { warn.push('未寻得「仅以取城为目」之关，目标判定未试'); }
+    else {
+      const s3 = Eng.newGame({ lord: found.lord, scenario: found.sc.id, stage: found.idx, seed: 999 });
+      if (Camp.goalMet(s3, found.stg.goal)) { errs.push('关卡 ' + found.stg.id + ' 开局即已达成'); }
+      if (Eng.checkStage(s3)) { errs.push('关卡 ' + found.stg.id + ' 未取城而先过关'); }
+      found.stg.goal.cities.forEach(c => { if (s3.cities[c]) { s3.cities[c].owner = s3.player; } });
+      if (!Camp.goalMet(s3, found.stg.goal)) { errs.push('关卡 ' + found.stg.id + ' 尽取其城而未判为成'); }
+      if (!Eng.checkStage(s3) || !s3.result || !s3.result.win || s3.result.reason !== 'stage') {
+        errs.push('关卡 ' + found.stg.id + ' 尽取其城而未过关');
+      }
+      ok.push('目标判定：尽取目标城即过关（' + found.stg.id + '）');
+    }
+  } catch (e) { errs.push('目标判定之试失败：' + e.message); }
+
+  /* 开放型末关：不因目标而终，唯待一统 */
+  try {
+    let k0 = null, sc0 = null;
+    lordKeys.some(k => {
+      const l = Camp.scenariosOf(k);
+      if (l.length) { k0 = k; sc0 = l[0]; return true; }
+      return false;
+    });
+    const s4 = Eng.newGame({ lord: k0, scenario: sc0.id, stage: sc0.stages.length - 1, seed: 555 });
+    if (!s4.stage.open) { errs.push('末关未标为开放型：' + sc0.id); }
+    if (Camp.goalMet(s4, s4.stage.goal)) { errs.push('开放型末关被判为已达成'); }
+    if (Eng.checkStage(s4)) { errs.push('开放型末关因目标而终'); }
+    ok.push('开放型末关：不设目标，待一统而终');
+  } catch (e) { errs.push('开放型末关之试失败：' + e.message); }
+}
+
+/* —— 关卡进度：逐关解锁、逐局解锁、计数与重置 —— */
+if (PROG && Camp) {
+  const lk = lordKeys[0], list = Camp.scenariosOf(lk), sc0 = list[0];
+  if (PROG.stageOpen(lk, sc0.id, 1)) { errs.push('进度：未克首关而次关已开'); }
+  PROG.mark(lk, sc0.id, 0);
+  if (!PROG.stageOpen(lk, sc0.id, 1)) { errs.push('进度：首关已克而次关未开'); }
+  if (PROG.stageOpen(lk, sc0.id, 2)) { errs.push('进度：仅克首关而三关已开'); }
+  if (PROG.done(lk, sc0.id) !== 1) { errs.push('进度：done 计数不符'); }
+  if (list.length > 1 && PROG.scenarioOpen(lk, list[1].id)) { errs.push('进度：前局未竟而次局已开'); }
+  sc0.stages.forEach((s, i) => PROG.mark(lk, sc0.id, i));
+  if (list.length > 1 && !PROG.scenarioOpen(lk, list[1].id)) { errs.push('进度：前局已竟而次局未开'); }
+  if (PROG.scenarioOpen(lk, sc0.id) !== true) { errs.push('进度：首局未开'); }
+  const tl = PROG.tally(lk);
+  if (tl.done !== sc0.stages.length) { errs.push('进度：tally 不符（' + tl.done + '）'); }
+  const lst = PROG.last();
+  if (!lst || lst.lord !== lk) { errs.push('进度：last() 不符'); }
+  if (!PROG.lordTally().length) { errs.push('进度：lordTally() 为空'); }
+  PROG.reset(lk);
+  if (PROG.done(lk, sc0.id) !== 0) { errs.push('进度：reset 未清'); }
+  if (PROG.last()) { errs.push('进度：清后仍有续战之记'); }
+  ok.push('关卡进度：逐关解锁、逐局解锁、计数、续战与重置皆合');
+}
 
 /* —— 引擎跑通：二十四主各推演 —— */
 let run = 0, dead = [];

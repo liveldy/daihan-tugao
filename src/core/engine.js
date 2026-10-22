@@ -50,7 +50,19 @@
     var FD = root.FACTIONS_DATA;
     var lord = FD.LORDS[lordKey];
     if (!lord) { throw new Error('未知君主 ' + lordKey); }
-    var eraKey = lord.era;
+    // 剧本与关卡：一君主多剧本，一剧本多关卡；未指定者取其默认之局、首关
+    var C = root.Campaign;
+    var scenario = null, stage = null, stageIdx = 0;
+    if (C) {
+      scenario = C.scenarioOf(lordKey, opts.scenario) || C.defaultScenario(lordKey);
+      if (scenario) {
+        stageIdx = opts.stage || 0;
+        if (stageIdx < 0 || stageIdx >= scenario.stages.length) { stageIdx = 0; }
+        stage = scenario.stages[stageIdx];
+      }
+    }
+    var eraKey = scenario ? scenario.era : lord.era;
+    if (!MAP.ERAS[eraKey]) { eraKey = lord.era; }
     var era = MAP.ERAS[eraKey];
     var owners = MAP.ownersOf(eraKey);
     var registry = allGenerals();
@@ -83,6 +95,15 @@
       difficulty: lord.difficulty || 3,
       mech: lord.mech,
       lord: lord,
+      scenario: scenario ? {
+        id: scenario.id, name: scenario.name, era: scenario.era,
+        index: C ? C.scenarioIndex(lordKey, scenario.id) : 0
+      } : null,
+      stage: stage ? {
+        index: stageIdx, id: stage.id, name: stage.name, desc: stage.desc || '',
+        count: scenario.stages.length, goal: stage.goal || { open: true },
+        open: !stage.goal || !!stage.goal.open
+      } : null,
       unlocked: {},
       lore: {}
     };
@@ -171,7 +192,17 @@
       }
     });
 
-    log(st, '【' + era.year + '年·' + era.era + '】' + lord.name + '起于' + (MAP.CITY_INDEX[lord.capital] ? MAP.CITY_INDEX[lord.capital].name : '') + '，志在' + lord.goal);
+    var mine0 = Object.keys(st.cities).filter(function (c) { return st.cities[c].owner === st.player; });
+    var seat = null;
+    if (st.cities[lord.capital] && st.cities[lord.capital].owner === st.player) { seat = lord.capital; }
+    else if (mine0.length) { seat = mine0.sort(function (a, b) { return st.cities[b].level - st.cities[a].level; })[0]; }
+    var seatName = (seat && MAP.CITY_INDEX[seat]) ? MAP.CITY_INDEX[seat].name : '四方';
+    log(st, '【' + era.year + '年·' + era.era + '】' + lord.name +
+      (st.scenario ? '「' + st.scenario.name + '」' : '') + '起于' + seatName + '，志在' + lord.goal);
+    if (st.stage) {
+      log(st, '第 ' + (st.stage.index + 1) + '／' + st.stage.count + ' 关·' + st.stage.name +
+        (st.stage.desc ? '：' + st.stage.desc : '') + '　目标：' + (root.Campaign ? root.Campaign.goalText(st.stage.goal) : ''), 'good');
+    }
     return st;
   }
 
@@ -335,7 +366,7 @@
         }
       });
       if (Object.keys(st.cities).every(function (k) { return st.cities[k].owner === faction; })) {
-        st.result = { win: true, faction: faction };
+        st.result = { win: true, faction: faction, reason: 'unify' };
         st.phase = 'over';
       }
     }
@@ -645,8 +676,32 @@
     }
     if (st.phase === 'over') { return ok_('战事已终'); }
     startTurn(st);
+    if (checkStage(st)) { st.phase = 'over'; return ok_('此关已定'); }
     st.phase = 'player';
     return ok_('第 ' + st.turn + ' 回合');
+  }
+
+  /* ————— 关卡目标 ————— */
+  /* 一关既定之志既成，则此关告捷；末关开放型无目标，唯待一统（由 captureCity 判定） */
+  function checkStage(st) {
+    if (st.result || !st.stage || st.stage.open) { return false; }
+    if (!root.Campaign || !root.Campaign.goalMet(st, st.stage.goal)) { return false; }
+    st.result = { win: true, faction: st.player, reason: 'stage' };
+    log(st, '【' + st.stage.name + '】既定之志成矣，此关已定。', 'good');
+    return true;
+  }
+
+  /* 当前关卡之状，供界面显示：目标之文、进度、是否已成、是否为开放型 */
+  function goalStatus(st) {
+    var C = root.Campaign;
+    if (!st || !st.stage || !C) { return null; }
+    var g = st.stage.goal;
+    return {
+      name: st.stage.name, index: st.stage.index, count: st.stage.count,
+      desc: st.stage.desc || '', text: C.goalText(g), progress: C.goalProgress(st, g),
+      met: C.goalMet(st, g), open: !!st.stage.open,
+      scenario: st.scenario ? st.scenario.name : ''
+    };
   }
 
   function checkDefeat(st) {
@@ -810,6 +865,8 @@
     cityAt: cityAt,
     log: log,
     countCities: countCities,
+    checkStage: checkStage,
+    goalStatus: goalStatus,
     allGenerals: allGenerals,
     livingGenerals: livingGenerals,
     freeTilesNear: freeTilesNear

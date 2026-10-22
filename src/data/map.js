@@ -331,6 +331,29 @@
         'chengdu': 'yi', 'jiangzhou': 'yi'
       }
     },
+    e215: {
+      year: 215, era: '建安二十年', ruler: '汉献帝刘协',
+      title: '汉中之争',
+      desc: '曹操西征张鲁，七月入南郑，汉中降；孙权乘虚围合肥，张辽以八百人破其十万于逍遥津。刘备既得益州，复与孙权争荆州三郡，遂有湘水之盟。天下之势，至此各定其界。',
+      regions: {
+        '凉州': 'wei', '雍州': 'wei', '司隶': 'wei', '并州': 'wei', '冀州': 'wei',
+        '幽州': 'wei', '青州': 'wei', '兖州': 'wei', '徐州': 'wei', '豫州': 'wei',
+        '荆州': 'wei', '扬州': 'wu', '益州': 'shu', '交州': 'wu'
+      },
+      overrides: {
+        'jincheng': 'liang', 'xiping': 'liang',
+        'hanzhong': 'hanzhong', 'yangping': 'hanzhong',
+        'shangyong': 'wei',
+        'jiangling': 'shu', 'wuling': 'shu', 'lingling': 'shu',
+        'changsha': 'wu', 'guiyang': 'wu', 'jiangxia': 'wu',
+        'xiangyang': 'wei', 'fancheng': 'wei', 'wan': 'wei', 'xinye': 'wei',
+        'xiangping': 'liaodong', 'liaodong': 'liaodong', 'xuantu': 'liaodong', 'lelang': 'liaodong',
+        'liaoxi': 'liaodong', 'youbeiping': 'liaodong',
+        'longbian': 'jiao', 'jiaozhi': 'jiao',
+        'danhan': 'xianbei', 'yunzhong': 'xianbei', 'shuofang': 'xianbei',
+        'meiji': 'nanxiong', 'liucheng': 'wuhuan'
+      }
+    },
     e220: {
       year: 220, era: '建安二十五年·延康元年', ruler: '魏文帝曹丕',
       title: '三国鼎立',
