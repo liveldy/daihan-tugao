@@ -121,11 +121,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .card .sub { font-size: 12px; color: var(--faint); }
 .kv { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; font-size: 12px; color: var(--muted); }
 .kv b { font-family: var(--mono); font-weight: 400; color: var(--ink); }
+/* 进度条：全局仅「朝局」一卡用之（党争、名分），其余一概用数字，免得满屏横条 */
 .bar { height: 4px; background: var(--line); border-radius: 9999px; overflow: hidden; margin-top: 5px; }
 .bar > i { display: block; height: 100%; background: var(--accent); }
-.bar.hp > i { background: var(--accent-deep); }
-.bar.gar > i { background: var(--gold); }
-.bar.mor > i { background: var(--live); }
 
 .unit-row, .gen-row { display: flex; align-items: center; gap: 8px; padding: 6px; border-radius: 4px; cursor: pointer; border: 1px solid transparent; }
 .unit-row:hover, .gen-row:hover { background: var(--card); border-color: var(--line); }
@@ -223,17 +221,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .toast-stack { position: fixed; right: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 60; }
 .toast { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 14px; font-size: 13px; box-shadow: var(--shadow); animation: rise 200ms var(--ease); }
 
-/* 响应式 */
-@media (max-width: 900px) {
-  body { overflow: auto; }
-  .main { grid-template-columns: 1fr; }
-  .side { border-left: 0; border-top: 1px solid var(--line); }
-  .tabpanel { max-height: 46vh; }
-  .picker { grid-template-columns: 1fr; }
-  .groups { border-right: 0; border-bottom: 1px solid var(--line); max-height: none; display: flex; gap: 6px; overflow-x: auto; }
-  .groups button { min-width: 132px; }
-  .topbar { height: auto; flex-wrap: wrap; padding: 8px 12px; gap: 8px; }
-}
+/* 响应式见文件末「分端之式」一节（平板与手机各有其式） */
 
 /* ——— 主页面三入口 ——— */
 .menu { display: grid; gap: 10px; padding: 16px; }
@@ -251,6 +239,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* ——— 头像（有图用图，无图用原文字） ——— */
 .avatar { display: inline-flex; align-items: center; justify-content: center; flex: none; }
 .avatar:empty { display: none; }
+/* 无图可换、又无可备之文字者：整框隐去，不留空框（见 art.js hideIfBlank） */
+.avatar.avatar-empty { display: none; }
 .avatar .art-img { display: block; object-fit: cover; border-radius: 4px; border: 1px solid var(--line-strong); }
 .avatar.av-btn .art-img { width: 26px; height: 26px; border-radius: 9999px; margin-right: 6px; }
 .avatar.av-row .art-img { width: 26px; height: 26px; border-radius: 9999px; }
@@ -336,7 +326,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .doc-link:hover { color: var(--accent-deep); text-decoration: underline; }
 /* 版本号：素纸上一行小字 */
 .ver { font-family: var(--mono); font-size: 11.5px; color: var(--faint); white-space: nowrap; cursor: help; }
-@media (max-width: 900px) { .wiki-shell { grid-template-columns: 1fr; } .wiki-nav { border-right: 0; border-bottom: 1px solid var(--line); } }
+/* 兵书志略之目录：窄屏改横排，见文件末「分端之式」 */
 
 
 /* ——— 剧本与关卡：一君主多剧本，一剧本多关卡 ——— */
@@ -417,3 +407,120 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .acct-wrap .opts-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .maint-wrap .etext { max-width: 46em; }
 .maint-wrap .story-foot { justify-content: center; }
+
+/* ——————————————— 分端之式 ———————————————
+ * 三端：桌面（>900）／平板（721—900）／手机（≤720）。
+ * 一律以视口为壳，壳内自滚：舆图在上、侧栏在下，页签吸顶，
+ * 舆图窄屏不缩小到看不清，而是保持可读宽度、左右推移。
+ */
+button, .menu-item, [role="tab"], .stage-row, .scen-tab, .lord-pick button { touch-action: manipulation; }
+* { -webkit-tap-highlight-color: transparent; }
+
+/* —— 平板：一栏，上图下行 —— */
+@media (max-width: 900px) {
+  .main { grid-template-columns: 1fr; grid-template-rows: minmax(200px, 46%) 1fr; }
+  .stage { border-bottom: 1px solid var(--line); }
+  .side { border-left: 0; border-top: 0; }
+  .tabs { position: sticky; top: 0; z-index: 6; background: var(--panel); }
+  .topbar { height: auto; flex-wrap: wrap; padding: 8px 12px; gap: 6px 10px; }
+  .topbar .spacer { display: none; }
+  /* 主页面：分组改横排、择局一栏 */
+  .picker { grid-template-columns: 1fr; min-height: 0; }
+  .groups { display: flex; gap: 6px; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line); max-height: none; padding: 8px; }
+  .groups button { min-width: 128px; }
+  .picker.has-campaign .groups, .picker.has-campaign .entries { max-height: none; }
+  .entries { max-height: none; }
+  .picker.has-campaign .campaign { max-height: none; }
+  /* 兵书志略：目录横排 */
+  .wiki-shell { grid-template-columns: 1fr; }
+  .wiki-nav { display: flex; gap: 6px; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line); padding: 10px 8px; }
+  .wiki-nav h2 { margin: 0 8px 0 4px; font-size: 15px; white-space: nowrap; }
+  .wiki-nav a { white-space: nowrap; }
+}
+
+/* —— 手机：分毫必较 —— */
+@media (max-width: 720px) {
+  html, body { overflow: hidden; }
+  /* 顶栏排作四行，各行各司其职：
+     一、名号与年月 ＋ 结束回合　二、金粮威望城池敌军　三、朝局 ＋ 关卡庙堂　四、本关之志 */
+  .topbar { padding: 6px 10px; gap: 4px 8px; row-gap: 4px; }
+  .topbar .brand { order: 1; flex: 1 1 55%; min-width: 0; gap: 6px; }
+  .topbar .brand b { font-size: 15px; letter-spacing: .04em; white-space: nowrap; }
+  .topbar .date { font-size: 10px; letter-spacing: .04em; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .seal { width: 26px; height: 26px; font-size: 15px; border-radius: 5px 5px 5px 2px; }
+  .topbar #btnEndTurn { order: 2; flex: 0 0 auto; }
+  .resources { order: 3; flex: 1 1 100%; gap: 2px 8px; }
+  .res, .res i { font-size: 12px; }
+  .courtchip { order: 4; flex: 1 1 auto; font-size: 11px; }
+  .topbar #btnStages { order: 5; }
+  .topbar #btnCourt { order: 6; }
+  .objective { order: 7; flex: 1 1 100%; max-width: none; font-size: 11.5px; }
+  .topbar .btn { min-height: 38px; padding: 0 12px; }
+
+  .main { grid-template-rows: minmax(150px, 42%) 1fr; }
+  .stage { overflow: auto; -webkit-overflow-scrolling: touch; }
+  /* 舆图不压成一条：保 760 之宽，指推左右观之 */
+  #map { width: 760px; max-width: none; }
+  .stage-foot { padding: 6px 10px; font-size: 12px; }
+  /* 窄屏舆图宽于屏，故明示可左右推移 */
+  .stage-foot .hint::after { content: "（舆图可左右推移）"; color: var(--faint); }
+  .tabs button { min-height: 46px; font-size: 13.5px; }
+  .tabpanel { padding: 10px; }
+  .tabpanel h3 { font-size: 14.5px; }
+  .card { padding: 9px 10px; }
+  .card .name { font-size: 15px; }
+  .unit-row, .gen-row { padding: 8px 6px; }
+  .btn { min-height: 42px; }
+  .btn.sm { min-height: 38px; }
+
+  /* 叠层：让位于小屏 */
+  .overlay { padding: 8px; }
+  .title-wrap { border-radius: 0; border-left: 0; border-right: 0; max-height: 96vh; }
+  .title-hero { padding: 22px 16px 16px; }
+  .title-hero .quote { font-size: 12.5px; }
+  .title-hero h1 { font-size: clamp(28px, 9vw, 40px); }
+  .menu { padding: 12px; gap: 8px; }
+  .menu-item { padding: 12px; }
+  .menu-item b { font-size: 16px; letter-spacing: .1em; }
+  /* 底栏吸于主页面之下缘：小屏纵使长卷，「受命而起」亦常在目前 */
+  .title-foot { flex-wrap: wrap; gap: 8px; padding: 10px 12px; position: sticky; bottom: 0; z-index: 2;
+    box-shadow: 0 -8px 18px rgb(65 50 39 / .08); }
+  .title-foot .hint { flex: 1 0 100%; font-size: 12px; }
+  .title-foot .btn { flex: 1 1 auto; }
+  #btnStart { flex: 1 0 100%; order: 9; min-height: 46px; font-size: 15px; }
+  .entries { padding: 10px; }
+  .entry { padding: 10px; }
+  .lord-pick button { padding: 6px 12px; }
+  .story-wrap, .ending-wrap { max-height: 94vh; width: 100%; }
+  .story-head { padding: 12px 14px 10px; }
+  .story-head h2 { font-size: 18px; }
+  .story-body { padding: 12px 14px; }
+  .story-foot, .choice { padding: 10px 14px; }
+  .choice .opts button { min-height: 46px; }
+  .ending-wrap { padding: 20px 16px; }
+  .ending-wrap .etext { font-size: 13.5px; }
+  .intel { left: 8px; top: 8px; width: calc(100% - 16px); max-height: 64%; }
+  .tutor { right: 8px; bottom: 8px; width: calc(100% - 16px); max-height: 52%; }
+  .toast-stack { left: 8px; right: 8px; bottom: 8px; }
+  .toast { padding: 8px 12px; font-size: 12.5px; }
+  .acct-wrap .acct-field { grid-template-columns: 1fr; gap: 4px; }
+  .acct-wrap .acct-field input { min-height: 42px; }
+
+  /* 兵书志略、匠作志略 */
+  .wiki-top { padding: 10px 12px; gap: 8px; flex-wrap: wrap; }
+  .wiki-top b { font-size: 15px; }
+  .wiki-nav { padding: 8px; }
+  .wiki-nav h2 { display: none; }
+  .wiki-main { padding: 14px 14px 40px; }
+  .wiki-sec h3 { font-size: 18px; }
+  .wiki-ent { padding-left: 9px; }
+  .wiki-table { font-size: 11.5px; }
+  .wiki-table th, .wiki-table td { padding: 3px 6px; }
+}
+
+/* —— 横持之手机：图与栏并置 —— */
+@media (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
+  .main { grid-template-columns: 1fr 300px; grid-template-rows: 1fr; }
+  .side { border-left: 1px solid var(--line); }
+  #map { width: 720px; }
+}

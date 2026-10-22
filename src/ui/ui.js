@@ -393,10 +393,9 @@
       box.style.flex = '1';
       box.appendChild(el('div', 'name', unitTitle(u)));
       var s = Rules.statsOf(u, u.generalRef);
+      /* 兵数已明书于行内，不再另画一条血条（同龄信息不重出，免得满屏进度条） */
       box.appendChild(el('div', 'sub', '兵 ' + Math.round(u.hp) + '/' + u.maxHp + '　攻' + s.atk + ' 防' + s.def +
         ' 移' + s.move + ' 射' + s.range + (u.level ? '　' + u.level + '等' : '')));
-      var bar = el('div', 'bar hp'); var i = el('i'); i.style.width = (u.hp / u.maxHp * 100) + '%'; bar.appendChild(i);
-      box.appendChild(bar);
       row.appendChild(box);
       row.addEventListener('click', function () { select(u); });
       p.appendChild(row);
@@ -513,9 +512,7 @@
       row.appendChild(el('span', 'name', c.name + '（' + c.zhou + '·' + c.kind + '）'));
       row.appendChild(el('span', 'sub', c.level + '级'));
       card.appendChild(row);
-      var bar = el('div', 'bar gar'); var i = el('i');
-      i.style.width = (c.garrison / Math.max(1, c.maxGarrison) * 100) + '%';
-      bar.appendChild(i); card.appendChild(bar);
+      /* 守备之数已在下一行，不再另画进度条 */
       card.appendChild(el('div', 'sub', '守备 ' + Math.round(c.garrison) + '/' + c.maxGarrison + '　民心 ' + Math.round(c.morale) + '　骚动 ' + Math.round(c.unrest)));
       var types = cityTypes(c);
       var box = el('div');
@@ -573,8 +570,7 @@
         bio.textContent = g.bio;
         card.appendChild(bio);
       }
-      var bar = el('div', 'bar mor'); var i = el('i'); i.style.width = (gs.loyalty || 0) + '%'; bar.appendChild(i);
-      card.appendChild(bar);
+      /* 忠诚之数自明，不另画条（列表之中一律用数字） */
       card.appendChild(el('div', 'sub', '忠诚 ' + Math.round(gs.loyalty || 0)));
       var b = el('button', 'btn sm', '赏赐 150');
       b.addEventListener('click', function () { toast(Eng.rewardGeneral(state, k).msg); draw(); });
@@ -1378,13 +1374,8 @@
       row.appendChild(nm);
       row.appendChild(el('span', 'sub', Eng.countCities(state, k) + '城'));
       card.appendChild(row);
+      /* 邦交之数已在上一行，不另画条；言「交兵／盟好」以别其向 */
       card.appendChild(el('div', 'sub', (war ? '交兵' : '盟好') + '　邦交 ' + Math.round(rel)));
-      var bar = el('div', 'bar');
-      var i = el('i');
-      i.style.width = Math.abs(rel) + '%';
-      i.style.background = rel >= 0 ? 'var(--live)' : 'var(--accent)';
-      bar.appendChild(i);
-      card.appendChild(bar);
 
       var acts = el('div');
       acts.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;';
