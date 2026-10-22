@@ -32,7 +32,7 @@
         </button>
         <button type="button" class="menu-item" id="btnWiki">
           <b>兵书志略</b>
-          <span>兵制、相克、行军、城池、邦交、剧情、胜负，并有「人物志」尽列将佐姓名、五维、技能与标签；凡十一门一百一十八条，皆按本作实法而书。</span>
+          <span>兵制、相克、行军、城池、邦交、剧本与关卡、朝局、剧情与胜负，并有「人物志」尽列将佐姓名、五维、技能与标签；凡十三门一百三十一条，皆按本作实法而书。</span>
         </button>
       </nav>
 
@@ -46,8 +46,10 @@
         <span class="ver" id="titleProgress"></span>
         <button type="button" class="btn sm" id="btnContinue" hidden>续战</button>
         <button type="button" class="btn" id="btnPickBack" hidden>返回</button>
+        <button type="button" class="btn sm" id="btnAccount">账号</button>
         <button type="button" class="btn" id="btnLorePreview">典籍</button>
         <a class="doc-link" href="dev.html">匠作志略</a>
+        <span class="ver" id="titleChannel"></span>
         <span class="ver" id="titleVer"></span>
         <button type="button" class="btn primary" id="btnStart" disabled>受命而起</button>
       </div>
@@ -63,6 +65,7 @@
     </div>
     <div class="resources" id="resources"></div>
     <div class="spacer"></div>
+    <span class="courtchip" id="courtChip" hidden></span>
     <span class="objective" id="objective" hidden></span>
     <button class="btn sm" id="btnStages">关卡</button>
     <button class="btn sm" id="btnCourt">庙堂</button>
@@ -102,6 +105,8 @@
 <script src="src/data/scenarios_2.js"></script>
 <script src="src/data/scenarios_3.js"></script>
 <script src="src/data/progress.js"></script>
+<script src="src/data/account.js"></script>
+<script src="src/data/politics_1.js"></script>
 <script src="src/data/generals_1.js"></script>
 <script src="src/data/generals_2.js"></script>
 <script src="src/data/generals_3.js"></script>
@@ -116,6 +121,7 @@
 <script src="src/data/stories_7.js"></script>
 <script src="src/core/rules.js"></script>
 <script src="src/core/campaign.js"></script>
+<script src="src/core/politics.js"></script>
 <script src="src/core/engine.js"></script>
 <script src="src/core/story.js"></script>
 <script src="src/core/tutor.js"></script>

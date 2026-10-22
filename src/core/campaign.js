@@ -76,6 +76,9 @@
     }
     if (goal.minCities) { parts.push('据城 ' + goal.minCities + ' 座以上'); }
     if (goal.turns) { parts.push('支撑至第 ' + goal.turns + ' 回合'); }
+    if (goal.strife != null) { parts.push('平朋党之争，党争降至 ' + goal.strife + ' 以下'); }
+    if (goal.heir) { parts.push('定储位以安众心'); }
+    if (goal.legit != null) { parts.push('名分至于 ' + goal.legit + ' 以上'); }
     if (goal.unify) { parts.push('尽有舆图城池'); }
     return parts.length ? parts.join('，') : '无定式';
   }
@@ -92,6 +95,10 @@
     })) { return false; }
     if (goal.minCities && countOwn(st, me) < goal.minCities) { return false; }
     if (goal.turns && st.turn < goal.turns) { return false; }
+    // 朝局之志：党争、储位、名分（见 src/core/politics.js）
+    if (goal.strife != null && !(st.court && st.court.strife <= goal.strife)) { return false; }
+    if (goal.heir && !(st.court && st.court.heir)) { return false; }
+    if (goal.legit != null && !(st.court && st.court.legit >= goal.legit)) { return false; }
     if (goal.unify && countOwn(st, me) < Object.keys(st.cities).length) { return false; }
     return true;
   }
@@ -111,6 +118,9 @@
     }
     if (goal.minCities) { out.push('城池 ' + countOwn(st, me) + '/' + goal.minCities); }
     if (goal.turns) { out.push('回合 ' + Math.min(st.turn, goal.turns) + '/' + goal.turns); }
+    if (goal.strife != null) { out.push('党争 ' + (st.court ? Math.round(st.court.strife) : '—') + '/' + goal.strife); }
+    if (goal.heir) { out.push('储位 ' + (st.court && st.court.heir ? st.court.heir.name : '未立')); }
+    if (goal.legit != null) { out.push('名分 ' + (st.court ? Math.round(st.court.legit) : '—') + '/' + goal.legit); }
     return out.join('　');
   }
 

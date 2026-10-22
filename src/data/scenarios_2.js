@@ -211,7 +211,7 @@
               id: 'caopi_yedu_3',
               name: '魏讽之变',
               desc: '建安二十四年九月，钟繇西曹掾魏讽谋袭邺，丕觉而诛之，连坐者数千人，邺下震悚。',
-              goal: { turns: 12 }
+              goal: { turns: 12, strife: 40 }
             },
             {
               id: 'caopi_yedu_4',
@@ -244,7 +244,7 @@
               id: 'caopi_shanrang_3',
               name: '九品中正',
               desc: '黄初元年，纳尚书陈群之议，立九品官人之法，州郡皆置中正，品第人物以为选格。',
-              goal: { minCities: 64 }
+              goal: { minCities: 64, legit: 70 }
             },
             {
               id: 'caopi_shanrang_4',
@@ -377,7 +377,7 @@
               id: 'simayi_dudu_5',
               name: '高平陵之变',
               desc: '正始十年正月，帝谒高平陵，懿称疾闭城，奏诛曹爽兄弟及其党，夷三族，魏政尽归司马。',
-              goal: { cities: ['luoyang'] }
+              goal: { cities: ['luoyang'], heir: true }
             },
             {
               id: 'simayi_dudu_6',

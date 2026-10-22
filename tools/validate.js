@@ -12,12 +12,13 @@ const FILES = [
   'src/data/map.js', 'src/data/factions.js',
   'src/data/scenarios_1.js', 'src/data/scenarios_2.js', 'src/data/scenarios_3.js',
   'src/data/progress.js',
+  'src/data/politics_1.js',
   'src/data/generals_1.js', 'src/data/generals_2.js', 'src/data/generals_3.js', 'src/data/generals_4.js',
   'src/data/lore.js',
   'src/data/stories_1.js', 'src/data/stories_2.js', 'src/data/stories_3.js',
   'src/data/stories_4.js', 'src/data/stories_5.js', 'src/data/stories_6.js', 'src/data/stories_7.js',
   'src/data/wiki.js', 'src/data/dev.js',
-  'src/core/rules.js', 'src/core/campaign.js', 'src/core/engine.js', 'src/core/story.js',
+  'src/core/rules.js', 'src/core/campaign.js', 'src/core/politics.js', 'src/core/engine.js', 'src/core/story.js',
   'src/core/tutor.js', 'src/core/ai.js'
 ];
 
@@ -337,7 +338,7 @@ checkDoc('匠作志略', sandbox.DEV, false);
 
 /* —— 剧本与关卡：一君主多剧本，一剧本多关卡，末关为开放型 —— */
 const Camp = sandbox.Campaign, PROG = sandbox.PROGRESS;
-const GOAL_KEYS = ['cities', 'factions', 'minCities', 'turns', 'unify', 'open'];
+const GOAL_KEYS = ['cities', 'factions', 'minCities', 'turns', 'unify', 'open', 'strife', 'heir', 'legit'];
 if (!Camp) { errs.push('缺 Campaign 模块'); }
 else {
   const seenScen = new Set(), seenStage = new Set();
@@ -391,6 +392,8 @@ else {
           errs.push('关卡 ' + stg.id + ' 的 minCities ' + g.minCities + ' 不合（本势力开局 ' + mine + ' 城）');
         }
         if (g.turns != null && (g.turns < 8 || g.turns > 200)) { errs.push('关卡 ' + stg.id + ' 的 turns ' + g.turns + ' 不合'); }
+        if (g.strife != null && (g.strife < 5 || g.strife > 90)) { errs.push('关卡 ' + stg.id + ' 的 strife 目标不合：' + g.strife); }
+        if (g.legit != null && (g.legit < 20 || g.legit > 95)) { errs.push('关卡 ' + stg.id + ' 的 legit 目标不合：' + g.legit); }
       });
       const last = sc.stages[sc.stages.length - 1];
       if (!last.goal || !last.goal.open) { errs.push('剧本 ' + sc.id + ' 之末关非开放型'); } else { nOpen++; }
@@ -478,6 +481,156 @@ if (PROG && Camp) {
   if (PROG.done(lk, sc0.id) !== 0) { errs.push('进度：reset 未清'); }
   if (PROG.last()) { errs.push('进度：清后仍有续战之记'); }
   ok.push('关卡进度：逐关解锁、逐局解锁、计数、续战与重置皆合');
+}
+
+/* —— 朝局：政争事件、议政、立储 —— */
+const POL = sandbox.POLITICS;
+if (!POL) { errs.push('缺朝局数据（src/data/politics_1.js）'); }
+else {
+  const COURT_KEYS = ['strife', 'loyalty', 'sealHeir', 'unsealHeir', 'purge', 'purgeDeath', 'legit'];
+  const EF_KEYS = ['gold', 'food', 'troops', 'morale', 'prestige', 'relation', 'flag', 'clearFlag',
+    'unlockGeneral', 'captureCity', 'enemyTroops', 'disaster', 'court'];
+  const REQ_KEYS = ['minCities', 'minPrestige', 'strifeAtLeast', 'strifeAtMost', 'heir', 'flag'];
+  const SCENE_T = ['narration', 'line', 'inner', 'history'];
+  const polIds = new Set();
+
+  function checkEffect(ef, who) {
+    if (!ef || typeof ef !== 'object' || !Object.keys(ef).length) { errs.push(who + ' 无效果'); return; }
+    Object.keys(ef).forEach(k => { if (EF_KEYS.indexOf(k) < 0) { errs.push(who + ' 的效果键不在白名单：' + k); } });
+    if (ef.relation && typeof ef.relation === 'object' && !MAP.FACTIONS[ef.relation.who]) {
+      errs.push(who + ' 的 relation 无此势力：' + ef.relation.who);
+    }
+    if (ef.unlockGeneral && !GEN[ef.unlockGeneral]) { errs.push(who + ' 的 unlockGeneral 非武将：' + ef.unlockGeneral); }
+    if (ef.captureCity && !MAP.CITY_INDEX[ef.captureCity]) { errs.push(who + ' 的 captureCity 无此城：' + ef.captureCity); }
+    if (ef.court) {
+      Object.keys(ef.court).forEach(k => { if (COURT_KEYS.indexOf(k) < 0) { errs.push(who + ' 的 court 键不在白名单：' + k); } });
+      ['sealHeir', 'purge', 'purgeDeath'].forEach(k => {
+        if (ef.court[k] && !GEN[ef.court[k]]) { errs.push(who + ' 的 court.' + k + ' 非武将：' + ef.court[k]); }
+      });
+    }
+  }
+
+  const EV = POL.events || [], TP = POL.topics || [], HR = POL.heirs || {};
+  EV.forEach(e => {
+    const who = '政争 ' + e.id;
+    if (!e.id || polIds.has(e.id)) { errs.push(who + ' 之 id 缺失或重复'); }
+    polIds.add(e.id);
+    ['name', 'year', 'src'].forEach(k => { if (e[k] == null || e[k] === '') { errs.push(who + ' 缺 ' + k); } });
+    if (!(e.year >= 184 && e.year <= 265)) { errs.push(who + ' 之年不合：' + e.year); }
+    if (!e.scene || e.scene.length < 3) { errs.push(who + ' 之场景不足三条'); }
+    (e.scene || []).forEach(s => {
+      if (!s.t || !s.text) { errs.push(who + ' 之场景缺 t/text'); }
+      else if (SCENE_T.indexOf(s.t) < 0) { errs.push(who + ' 之场景类型不合：' + s.t); }
+    });
+    (e.factions || []).forEach(f => { if (!MAP.FACTIONS[f]) { errs.push(who + ' 之势力不存在：' + f); } });
+    (e.lords || []).forEach(k => { if (!LORDS[k]) { errs.push(who + ' 之君主不存在：' + k); } });
+    Object.keys(e.requires || {}).forEach(k => { if (REQ_KEYS.indexOf(k) < 0) { errs.push(who + ' 的 requires 键不在白名单：' + k); } });
+    if (!e.choice || !e.choice.options || e.choice.options.length < 2) { errs.push(who + ' 之抉择不足两条'); }
+    ((e.choice || {}).options || []).forEach((o, i) => {
+      if (!o.text || !o.reply) { errs.push(who + ' 之选项 ' + i + ' 缺 text/reply'); }
+      checkEffect(o.effect, who + ' 选项 ' + i);
+    });
+  });
+
+  TP.forEach(t => {
+    const who = '议政 ' + t.id;
+    if (!t.id || polIds.has(t.id)) { errs.push(who + ' 之 id 缺失或重复'); }
+    polIds.add(t.id);
+    ['name', 'desc', 'src'].forEach(k => { if (!t[k]) { errs.push(who + ' 缺 ' + k); } });
+    if (t.cost && t.cost.prestige != null && (t.cost.prestige < 0 || t.cost.prestige > 30)) { errs.push(who + ' 的威望之费不合：' + t.cost.prestige); }
+    if (!t.options || t.options.length < 2) { errs.push(who + ' 之策不足两条'); }
+    (t.options || []).forEach((o, i) => {
+      if (!o.text || !o.reply) { errs.push(who + ' 之策 ' + i + ' 缺 text/reply'); }
+      checkEffect(o.effect, who + ' 策 ' + i);
+    });
+  });
+
+  Object.keys(HR).forEach(k => {
+    if (!LORDS[k]) { errs.push('储位：未知君主 ' + k); return; }
+    if (!HR[k].length) { errs.push('储位：' + k + ' 之列空'); }
+    HR[k].forEach(h => {
+      if (!GEN[h.id]) { errs.push('储位：' + k + ' 之候选 ' + h.id + ' 非武将'); return; }
+      if (GEN[h.id].name !== h.name) { errs.push('储位：' + h.id + ' 之名不符（' + h.name + ' ≠ ' + GEN[h.id].name + '）'); }
+      if (!(h.order >= 1 && h.order <= 9)) { errs.push('储位：' + h.id + ' 之齿序不合：' + h.order); }
+      if (!h.claim || !h.note) { errs.push('储位：' + h.id + ' 缺 claim/note'); }
+    });
+    const ords = HR[k].map(h => h.order);
+    if (new Set(ords).size !== ords.length) { errs.push('储位：' + k + ' 之齿序重复'); }
+  });
+
+  ok.push('朝局：政争 ' + EV.length + ' 条，议政 ' + TP.length + ' 条，储位之君 ' + Object.keys(HR).length +
+    ' 位（候选 ' + Object.keys(HR).reduce((n, k) => n + HR[k].length, 0) + ' 人）');
+  if (EV.length < 18) { warn.push('政争事件仅 ' + EV.length + ' 条（规格要求不少于 18）'); }
+  if (TP.length < 8) { warn.push('议政之题仅 ' + TP.length + ' 条（规格要求不少于 8）'); }
+  if (Object.keys(HR).length < 12) { warn.push('有储位之君仅 ' + Object.keys(HR).length + ' 位（规格要求不少于 12）'); }
+
+  /* 朝局之志皆须可成：求立储者须有储可立，求平党争者须有可平之法 */
+  let nCourtGoal = 0, nHeirGoal = 0;
+  lordKeys.forEach(k => Camp.scenariosOf(k).forEach(sc => sc.stages.forEach(stg => {
+    const g = stg.goal || {};
+    if (g.strife != null || g.heir || g.legit != null) {
+      nCourtGoal++;
+      if (g.heir) { nHeirGoal++; }
+    }
+    if (g.heir && !(HR[k] && HR[k].length)) { errs.push('关卡 ' + stg.id + ' 求立储，而 ' + LORDS[k].name + ' 无储可立'); }
+    if (g.strife != null) {
+      const canSeal = !!(HR[k] && HR[k].length);
+      const canCouncil = TP.some(t => (t.options || []).some(o => o.effect && o.effect.court && o.effect.court.strife < 0));
+      const canEvent = EV.some(e => ((e.choice || {}).options || []).some(o => o.effect && o.effect.court && o.effect.court.strife < 0));
+      if (!canSeal && !canCouncil && !canEvent) { errs.push('关卡 ' + stg.id + ' 求平党争，而 ' + LORDS[k].name + ' 无立储亦无降党争之法'); }
+    }
+  })));
+  ok.push('朝局之志 ' + nCourtGoal + ' 关（立储 ' + nHeirGoal + ' 关、平党争之关亦在其中），皆有可成之法');
+
+  /* 朝局之实：议政、立储、政争三事皆能行 */
+  try {
+    const s5 = Eng.newGame({ lord: 'caocao', seed: 4242 });
+    if (!s5.court) { errs.push('开局未载朝局'); }
+    const stt = Eng.politicsStatus(s5);
+    if (!stt || typeof stt.strife !== 'number' || typeof stt.legit !== 'number') { errs.push('朝局之状不合'); }
+    else { ok.push('朝局之状：党争 ' + stt.strife + '（' + stt.label + '）、名分 ' + stt.legit + '、储位 ' + (stt.heir || '未立')); }
+    const open = Eng.courtTopics(s5).filter(t => t.open);
+    if (!open.length) { warn.push('曹魏开局无可议之事（金帛或威望不足）'); }
+    else {
+      const r = Eng.council(s5, open[0].id, 0);
+      if (!r.ok) { errs.push('议政未成：' + r.msg); }
+      const r2 = Eng.council(s5, open[0].id, 0);
+      if (r2.ok) { errs.push('同回合可议二事'); }
+      ok.push('议政：' + open[0].name + ' 可行，且一回合止一事');
+    }
+    const cands = Eng.heirCandidates(s5);
+    if (!cands.length) { warn.push('曹操无储可议，立储未试'); }
+    else {
+      const r3 = Eng.setHeir(s5, cands[cands.length - 1].id);
+      if (!r3.ok || !s5.court.heir) { errs.push('立储未成：' + r3.msg); }
+      if (Eng.setHeir(s5, cands[cands.length - 1].id).ok) { errs.push('可重立同一人为储'); }
+      const g1 = Eng.goalStatus(s5);
+      if (!Camp.goalMet(s5, { heir: true })) { errs.push('立储之后，储位之志仍未成'); }
+      ok.push('立储：可立、可废立（耗威望）、可判「定储位」之志');
+    }
+    if (!Camp.goalMet(s5, { strife: 95 })) { errs.push('党争之志之判不合（党争低而志未成）'); }
+    if (!/党争降至 95 以下/.test(Camp.goalText({ strife: 95 }))) { errs.push('党争之志之文不合'); }
+    if (!/党争 \d+\/95/.test(Camp.goalProgress(s5, { strife: 95 }))) { errs.push('党争之志之进度不合'); }
+  } catch (e) { errs.push('朝局之实失败：' + e.message); }
+
+  /* 政争之发：逐君推演，可见事件且有决断之途 */
+  try {
+    let fired = 0, resolved = 0, seenIds = new Set();
+    lordKeys.forEach(k => {
+      const s6 = Eng.newGame({ lord: k, seed: 20260101 });
+      for (let t = 0; t < 40 && !s6.result; t++) {
+        Eng.endTurn(s6);
+        const e = Eng.pendingPolitics(s6);
+        if (e) {
+          fired++; seenIds.add(e.id);
+          const r = Eng.resolvePolitics(s6, 0);
+          if (r.ok) { resolved++; } else { errs.push('政争 ' + e.id + ' 决断失败：' + r.msg); }
+        }
+      }
+    });
+    if (!fired) { errs.push('推演二十六主各四十回合，未发一事'); }
+    else { ok.push('政争：推演二十六主各四十回合，事发 ' + fired + ' 次（' + seenIds.size + ' 种），决断 ' + resolved + ' 次'); }
+  } catch (e) { errs.push('政争推演失败：' + e.message); }
 }
 
 /* —— 引擎跑通：二十四主各推演 —— */

@@ -376,3 +376,44 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .objective .met { color: var(--live); }
 .objective.open-stage .txt { color: var(--faint); }
 .ending-wrap .next-note { margin-top: 6px; color: var(--accent-deep); font-size: 13px; }
+
+/* ——— 朝局：党争、名分、储位，与议政、立储 ——— */
+.courtchip { display: flex; gap: 6px; align-items: baseline; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.courtchip .tag { font-style: normal; font-family: var(--mono); font-size: 10px; letter-spacing: .14em; color: var(--accent-deep); }
+.courtchip .strife { font-family: var(--mono); font-size: 11px; color: var(--faint); }
+.courtchip .strife.bad { color: var(--accent-deep); }
+.courtchip .heir { font-size: 11.5px; color: var(--muted); }
+.courtchip .heir.none { color: var(--faint); }
+.court-bar { display: grid; grid-template-columns: 34px 1fr 30px; gap: 8px; align-items: center; margin: 4px 0 2px; }
+.court-bar .lb { font-size: 12.5px; color: var(--muted); }
+.court-bar .num { font-family: var(--mono); font-size: 11px; color: var(--faint); text-align: right; }
+.court-bar .bar { margin-top: 0; }
+.court-bar .bar > i.warm { background: var(--gold); }
+.court-bar .bar > i.hot { background: var(--accent); }
+.court-log { display: grid; gap: 3px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }
+.court-log .li { font-size: 12px; color: var(--muted); }
+.court-log .li.good { color: var(--live); }
+.court-log .li.bad { color: var(--accent-deep); }
+.card .topic, .card .heir { border-top: 1px dashed var(--line); padding: 9px 0 4px; }
+.card .topic:first-of-type { border-top: 0; }
+.card .topic.off { opacity: .68; }
+.card .topic .row { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.card .topic .row b, .card .heir .row b { font-size: 14px; font-weight: 500; }
+.card .topic p, .card .heir p { margin: 4px 0 6px; }
+.card .topic .opts-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.card .topic .why, .card .topic .src, .card .heir.cur .row .sub { font-size: 11.5px; color: var(--faint); }
+.card .topic .why { margin-top: 5px; }
+.card .topic .src { margin-top: 4px; font-family: var(--mono); }
+.card .heir.cur { background: #fff8ef; border-radius: var(--radius); padding-left: 8px; padding-right: 8px; }
+.politics-wrap .story-head h2 { color: var(--accent-deep); }
+.politics-wrap .reply { font-size: 13px; color: var(--muted); margin-top: 6px; }
+
+/* ——— 正式版：账号、云存档与在线更新 ——— */
+.acct-wrap .acct-field { display: grid; grid-template-columns: 6em 1fr; gap: 8px; align-items: center; margin: 8px 0; }
+.acct-wrap .acct-field .lb { font-size: 12.5px; color: var(--muted); }
+.acct-wrap .acct-field input { min-height: 34px; padding: 4px 8px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--card); color: var(--ink); font-family: var(--sans); font-size: 13px; }
+.acct-wrap .acct-field input:focus-visible { border-color: var(--accent); outline: none; }
+.acct-wrap .acct-note { font-size: 12.5px; color: var(--accent-deep); min-height: 1.4em; margin-top: 6px; }
+.acct-wrap .opts-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.maint-wrap .etext { max-width: 46em; }
+.maint-wrap .story-foot { justify-content: center; }

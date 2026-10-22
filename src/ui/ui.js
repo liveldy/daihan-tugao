@@ -302,7 +302,22 @@
       });
     $('clock').textContent = state.year + '年 · ' + state.eraTitle + ' · 第' + state.turn + '回合 · ' + ['春', '夏', '秋', '冬'][state.seasonIdx];
     drawObjective();
+    drawCourt();
     renderTab();
+  }
+
+  /* 朝局之栏：常驻顶栏，示党争、名分与储位 */
+  function drawCourt() {
+    var box = $('courtChip');
+    if (!box) { return; }
+    var c = root.Politics && state ? root.Politics.status(state) : null;
+    if (!c) { box.hidden = true; return; }
+    box.hidden = false;
+    clear(box);
+    box.appendChild(el('i', 'tag', '朝局'));
+    box.appendChild(el('span', 'strife' + (c.strife >= 65 ? ' bad' : ''), '党争 ' + c.strife + '·' + c.label));
+    box.appendChild(el('span', 'heir' + (c.heir ? '' : ' none'), '储 ' + (c.heir || (c.canSeal ? '未立' : '未议'))));
+    box.title = '名分 ' + c.legit + '　已议 ' + c.councils + ' 事';
   }
 
   /* 目标之栏：常驻顶栏，示本关之志与进度 */
@@ -872,7 +887,7 @@
     draw();
     T().turn();
     if (state.result) { showEnding(); return; }
-    nextStory();
+    if (tutorOn() || !openPolitics()) { nextStory(); }
   }
 
   /* ————— 剧情 ————— */
@@ -1115,6 +1130,212 @@
     b.focus();
   }
 
+  /* ————— 庙堂：朝局（议政、立储）、邦交与诏书 ————— */
+  /* 朝局一览：党争、名分、储位，及近日朝议之记 */
+  function courtStatusCard() {
+    var P = root.Politics;
+    var card = el('div', 'card');
+    if (!P || !state.court) {
+      card.appendChild(el('h3', null, '朝局'));
+      card.appendChild(el('p', 'sub', '本局未载朝局。'));
+      return card;
+    }
+    var c = P.status(state);
+
+    function bar(label, value, max, cls) {
+      var row = el('div', 'court-bar');
+      row.appendChild(el('span', 'lb', label));
+      var b = el('div', 'bar');
+      var i = el('i');
+      i.style.width = Math.round(value / max * 100) + '%';
+      if (cls) { i.className = cls; }
+      b.appendChild(i);
+      row.appendChild(b);
+      row.appendChild(el('span', 'num', String(Math.round(value))));
+      return row;
+    }
+    card.appendChild(el('h3', null, '朝局'));
+    card.appendChild(bar('党争', c.strife, 100, c.strife >= 65 ? 'hot' : (c.strife >= 45 ? 'warm' : '')));
+    card.appendChild(el('p', 'sub', '朋党之势：' + c.label +
+      '。党争每十点，减岁入百分之四（至多四成）；逾六十五，则或大臣去国、或郡县离心。' +
+      '议政与立储皆可动之。'));
+    card.appendChild(bar('名分', c.legit, 100, ''));
+    card.appendChild(el('p', 'sub', '名分者，正统之望。威望足以服众则名分自增，名分高则民心自安、臣心自固。'));
+    card.appendChild(el('p', null, '储位：' + (c.heir ? ('已立 ' + c.heir) : (c.canSeal ? '未立（国有诸子，众心未定，党争每合自增）' : '本朝无储可议'))));
+    if (state.court.history && state.court.history.length) {
+      var ul = el('div', 'court-log');
+      state.court.history.slice(-5).reverse().forEach(function (h) {
+        ul.appendChild(el('div', 'li ' + (h.kind || 'info'), '第' + h.turn + '回合　' + h.text));
+      });
+      card.appendChild(ul);
+    }
+    return card;
+  }
+
+  /* 议政：朝会集议，取一策而行 */
+  function courtTopicsCard() {
+    var card = el('div', 'card');
+    card.appendChild(el('h3', null, '议政'));
+    var list = Eng.courtTopics ? Eng.courtTopics(state) : [];
+    if (!list.length) { card.appendChild(el('p', 'sub', '海内未定，诸事未遑。')); return card; }
+    var c = state.court;
+    card.appendChild(el('p', 'sub', '每回合可集议一事。金帛、威望既足而事在可议者，其策列下。'));
+    list.forEach(function (t) {
+      var box = el('div', 'topic' + (t.open ? '' : ' off'));
+      var hd = el('div', 'row');
+      hd.appendChild(el('b', null, t.name));
+      var cost = [];
+      if (t.cost && t.cost.gold) { cost.push('金 ' + t.cost.gold); }
+      if (t.cost && t.cost.prestige) { cost.push('威望 ' + t.cost.prestige); }
+      if (cost.length) { hd.appendChild(el('span', 'sub', cost.join('　'))); }
+      box.appendChild(hd);
+      box.appendChild(el('p', 'sub', t.desc));
+      var acts = el('div', 'opts-row');
+      t.options.forEach(function (o, i) {
+        var b = el('button', 'btn sm', o.text);
+        b.disabled = !t.open;
+        b.title = t.open ? '' : t.why;
+        b.addEventListener('click', function () {
+          var r = Eng.council(state, t.id, i);
+          toast(r.msg);
+          refreshAuras();
+          draw();
+          showCourt();
+        });
+        acts.appendChild(b);
+      });
+      box.appendChild(acts);
+      if (!t.open && t.why) { box.appendChild(el('div', 'why', t.why)); }
+      if (t.src) { box.appendChild(el('div', 'src', t.src)); }
+      card.appendChild(box);
+    });
+    return card;
+  }
+
+  /* 立储：诸子之资与其名分 */
+  function courtHeirCard() {
+    var card = el('div', 'card');
+    card.appendChild(el('h3', null, '立储'));
+    var list = Eng.heirCandidates ? Eng.heirCandidates(state) : [];
+    if (!list.length) {
+      card.appendChild(el('p', 'sub', '本朝无储可议（此君之嗣未见史载）。'));
+      return card;
+    }
+    var c = state.court;
+    card.appendChild(el('p', 'sub', '储位未定则朋党自生；立嫡则朝局稍安，废长立幼则众心未服。' +
+      (c && c.heir ? '（废立大事，须威望 20）' : '（立储须威望 10）')));
+    list.forEach(function (h) {
+      var box = el('div', 'heir' + (h.current ? ' cur' : ''));
+      var row = el('div', 'row');
+      row.appendChild(el('b', null, h.name));
+      row.appendChild(el('span', 'sub', '第 ' + h.order + '　' + (h.claim || '') + (h.current ? '　今为储君' : '')));
+      box.appendChild(row);
+      if (h.stats) {
+        box.appendChild(el('div', 'sub', '统 ' + h.stats.lead + '　武 ' + h.stats.war + '　智 ' + h.stats.int +
+          '　政 ' + h.stats.pol + '　魅 ' + h.stats.cha + '　影响 ' + h.impact));
+      }
+      box.appendChild(el('p', 'sub', h.note));
+      var b = el('button', 'btn sm', h.current ? '已为储君' : '立为储君');
+      b.disabled = !!h.current || !h.alive;
+      b.addEventListener('click', function () {
+        var r = Eng.setHeir(state, h.id);
+        toast(r.msg);
+        draw();
+        showCourt();
+      });
+      box.appendChild(b);
+      card.appendChild(box);
+    });
+    return card;
+  }
+
+  /* 政争事件：依年依势而发，呈于朝堂，须抉择 */
+  function openPolitics() {
+    var e = Eng.pendingPolitics(state);
+    if (!e) { return false; }
+    var ov = $('overlay');
+    clear(ov);
+    var wrap = el('div', 'story-wrap politics-wrap');
+    var head = el('div', 'story-head');
+    head.appendChild(el('div', 'idx', '朝局 · 政争'));
+    head.appendChild(el('h2', null, e.name || '朝中生变'));
+    head.appendChild(el('div', 'meta', state.year + '年　' + state.eraTitle +
+      (e.year ? '　事在本年' : '')));
+    wrap.appendChild(head);
+
+    var body = el('div', 'story-body');
+    (e.scene || []).forEach(function (s) {
+      if (s.t === 'narration') { body.appendChild(el('p', 'narration', s.text)); }
+      else if (s.t === 'line') {
+        var d = el('div', 'line');
+        d.appendChild(el('span', 'who', s.who + '：'));
+        d.appendChild(el('span', 'txt', s.text));
+        body.appendChild(d);
+      } else if (s.t === 'inner') {
+        body.appendChild(el('div', 'inner', (s.who ? '（' + s.who + '心念：' : '（心念：') + (s.text || '') + '）'));
+      } else if (s.t === 'history') {
+        var hh = el('div', 'history');
+        hh.appendChild(document.createTextNode(s.text || ''));
+        if (s.src) { hh.appendChild(el('span', 'src', '　' + s.src)); }
+        body.appendChild(hh);
+      } else if (s.text) { body.appendChild(el('p', 'narration', s.text)); }
+    });
+    if (e.src) { body.appendChild(el('div', 'src', '史源：' + e.src)); }
+    wrap.appendChild(body);
+
+    var foot = el('div', 'story-foot');
+    var note = el('span', 'reward-note', '');
+    foot.appendChild(note);
+    foot.appendChild(el('span', 'spacer'));
+    var picked = { index: 0, done: !(e.choice && e.choice.options && e.choice.options.length) };
+    var next = el('button', 'btn primary', picked.done ? '已知' : '请先抉择');
+    next.disabled = !picked.done;
+    next.addEventListener('click', close);
+    foot.appendChild(next);
+
+    function close() {
+      var out = Eng.resolvePolitics(state, picked.index);
+      if (out && out.data && out.data.notes && out.data.notes.length) { note.textContent = out.data.notes.join('　'); }
+      ov.classList.remove('on');
+      clear(ov);
+      refreshAuras();
+      draw();
+      setTimeout(function () {
+        if (state.result) { showEnding(); return; }
+        if (!openPolitics()) { nextStory(); }
+      }, 60);
+    }
+
+    wrap.appendChild(foot);
+
+    if (!picked.done) {
+      var chBox = el('div', 'choice');
+      chBox.appendChild(el('div', 'prompt', e.choice.prompt || ''));
+      var opts = el('div', 'opts');
+      e.choice.options.forEach(function (o, i) {
+        var b = el('button', 'btn sm', o.text);
+        b.addEventListener('click', function () {
+          picked.index = i;
+          picked.done = true;
+          clear(opts);
+          if (o.reply) { chBox.appendChild(el('div', 'reply', o.reply)); }
+          if (o.inner) { chBox.appendChild(el('div', 'inner', '（心念：' + o.inner + '）')); }
+          next.disabled = false;
+          next.textContent = '阅毕';
+          next.focus();
+        });
+        opts.appendChild(b);
+      });
+      chBox.appendChild(opts);
+      wrap.appendChild(chBox);
+    }
+    ov.appendChild(wrap);
+    ov.classList.add('on');
+    var ft = picked.done ? next : wrap.querySelector('.choice button');
+    if (ft) { ft.focus(); }
+    return true;
+  }
+
   /* ————— 庙堂：邦交与诏书 ————— */
   function showCourt() {
     if (!state) { return; }
@@ -1125,12 +1346,17 @@
     var wrap = el('div', 'story-wrap');
     var head = el('div', 'story-head');
     head.appendChild(el('div', 'idx', '庙堂'));
-    head.appendChild(el('h2', null, '邦交与诏令'));
+    head.appendChild(el('h2', null, '朝局与邦交'));
+    var cs = root.Politics && state.court ? root.Politics.status(state) : null;
     head.appendChild(el('div', 'meta', '金 ' + Math.round(me.gold) + '　威望 ' + Math.round(me.prestige) +
+      (cs ? ('　党争 ' + cs.strife + '　名分 ' + cs.legit + '　储 ' + (cs.heir || '未立')) : '') +
       '　礼赂 300　罢兵 400 起'));
     wrap.appendChild(head);
 
     var body = el('div', 'story-body');
+    body.appendChild(courtStatusCard());
+    body.appendChild(courtTopicsCard());
+    body.appendChild(courtHeirCard());
     var list = Object.keys(state.factions).filter(function (k) {
       return k !== state.player && state.factions[k].alive;
     }).sort(function (a, b) {
@@ -1219,6 +1445,264 @@
     b2.focus();
   }
 
+  /* ————— 账号与云存档（正式版）————— */
+  function accountBadge() {
+    var el2 = $('titleChannel');
+    if (!el2 || !root.ACCOUNT) { return; }
+    var A = root.ACCOUNT.state();
+    el2.textContent = A.channel === 'release' ? '正式版' : '预览版';
+    el2.title = A.channel === 'release'
+      ? '正式版（自建服务端）：有账号、云存档、版本检查与在线更新。服务端版本 ' + (A.serverVersion || '—') +
+        (A.user ? '　已登录：' + A.user + (A.admin ? '（掌管理之权）' : '') : '　未登录')
+      : '预览版（GitHub 静态页）：无账号与云存档，玩法相同；正式版由自建服务端提供。';
+  }
+
+  function field(label, type, value, placeholder) {
+    var wrap2 = el('label', 'acct-field');
+    wrap2.appendChild(el('span', 'lb', label));
+    var i = document.createElement('input');
+    i.type = type || 'text';
+    i.value = value || '';
+    if (placeholder) { i.placeholder = placeholder; }
+    i.autocomplete = type === 'password' ? 'current-password' : 'off';
+    wrap2.appendChild(i);
+    wrap2.input = i;
+    return wrap2;
+  }
+
+  function showAccount() {
+    var A = root.ACCOUNT;
+    if (!A) { return; }
+    var st = A.state();
+    var ov = $('overlay');
+    clear(ov);
+    var wrap = el('div', 'story-wrap acct-wrap');
+    var head = el('div', 'story-head');
+    head.appendChild(el('div', 'idx', st.channel === 'release' ? '正式版 · 账号' : '预览版'));
+    head.appendChild(el('h2', null, st.channel === 'release' ? '账号、云存档与更新' : '关于版本'));
+    head.appendChild(el('div', 'meta', (st.channel === 'release' ? '正式版' : '预览版') +
+      '　本作 v' + (root.APP_VERSION ? root.APP_VERSION.version : '—') +
+      (st.serverVersion ? '　服务端 v' + st.serverVersion : '') +
+      (st.user ? '　' + st.user + (st.admin ? '（掌管理之权）' : '') : '')));
+    wrap.appendChild(head);
+
+    var body = el('div', 'story-body');
+
+    if (st.channel !== 'release') {
+      var c0 = el('div', 'card');
+      c0.appendChild(el('h3', null, '预览版与正式版之别'));
+      c0.appendChild(el('p', null, '本页所开为**预览版**：纯静态之站，随仓库而更新，其玩法与正式版一致，' +
+        '然无账号、无云存档，亦无在线更新。'));
+      c0.appendChild(el('p', null, '正式版由自建服务端提供（`node server/server.js`，见仓库中之 server/README.md）：' +
+        '有账号登录、云存档（跨机续战）、版本检查，并由管理员手动检查与施行更新；' +
+        '更新之时先生维护公告、拒新登录，待在线诸客自然下场（或逾时）方原子替换，故在局者不至半途而废。'));
+      c0.appendChild(el('p', 'sub', '自建服务端者，浏览器所开即为此正式版；本作自探其有无而自定其为预览或正式。'));
+      body.appendChild(c0);
+    } else if (!st.user) {
+      var c1 = el('div', 'card');
+      c1.appendChild(el('h3', null, '登录或注册'));
+      c1.appendChild(el('p', 'sub', '首位注册者掌管理之权（检查与施行更新、发维护公告）。'));
+      var u = field('名号', 'text', '', '2—16 字之中文、字母、数字或下划线');
+      var p1 = field('口令', 'password', '', '不得少于六位');
+      c1.appendChild(u); c1.appendChild(p1);
+      var note = el('div', 'acct-note', '');
+      c1.appendChild(note);
+      var acts = el('div', 'opts-row');
+      function doAuth(kind) {
+        note.textContent = '候覆…';
+        var fn = kind === 'reg' ? A.register : A.login;
+        fn(u.input.value.trim(), p1.input.value).then(function (r) {
+          if (r.body && r.body.ok) { toast(kind === 'reg' ? '已注册，君即掌管理之权者' : '已登录'); showAccount(); accountBadge(); return; }
+          note.textContent = (r.body && r.body.msg) || ('未成（HTTP ' + r.code + '）');
+        }).catch(function (e) { note.textContent = '未成：' + e.message; });
+      }
+      var bReg = el('button', 'btn sm', '注册');
+      bReg.addEventListener('click', function () { doAuth('reg'); });
+      var bLog = el('button', 'btn sm primary', '登录');
+      bLog.addEventListener('click', function () { doAuth('log'); });
+      acts.appendChild(bReg); acts.appendChild(bLog);
+      c1.appendChild(acts);
+      body.appendChild(c1);
+    } else {
+      var c2 = el('div', 'card');
+      c2.appendChild(el('h3', null, '云存档'));
+      c2.appendChild(el('p', 'sub', '云存档即本地之「疆场之记」（已克之关、逐关解锁与续战之记）。' +
+        '上线传之，他机取之，则可续前战。'));
+      var sv = st.cloud;
+      c2.appendChild(el('p', null, sv ? ('云上之档：' + new Date(sv.savedAt).toLocaleString('zh-CN') +
+        '（' + (sv.rev || '') + '，作 v' + (sv.version || '—') + '）') : '云上尚无归档。'));
+      var acts2 = el('div', 'opts-row');
+      var bUp = el('button', 'btn sm', '上传存档');
+      bUp.addEventListener('click', function () {
+        bUp.disabled = true; bUp.textContent = '上传中…';
+        A.uploadSave().then(function (r) {
+          toast((r.body && r.body.msg) || (r.body && r.body.ok ? '存档已上传' : '上传未成'));
+          showAccount();
+        }).catch(function (e) { toast('上传未成：' + e.message); bUp.disabled = false; bUp.textContent = '上传存档'; });
+      });
+      var bDown = el('button', 'btn sm', '下载存档');
+      bDown.disabled = !sv;
+      bDown.addEventListener('click', function () {
+        if (!root.confirm('以云上之档覆盖本机之进展？此不可复。')) { return; }
+        bDown.disabled = true; bDown.textContent = '下载中…';
+        A.downloadSave().then(function (r) {
+          if (r.body && r.body.ok) {
+            toast('存档已取下（' + (r.body.after ? r.body.after.done + '／' + r.body.after.total + ' 关' : '') + '）');
+            location.reload();
+          } else { toast((r.body && r.body.msg) || '下载未成'); bDown.disabled = false; bDown.textContent = '下载存档'; }
+        });
+      });
+      var bOut = el('button', 'btn sm', '退出登录');
+      bOut.addEventListener('click', function () { A.logout().then(function () { toast('已退出'); showAccount(); accountBadge(); }); });
+      acts2.appendChild(bUp); acts2.appendChild(bDown); acts2.appendChild(bOut);
+      c2.appendChild(acts2);
+      body.appendChild(c2);
+
+      if (st.admin) { body.appendChild(adminCard()); }
+      else {
+        var c3 = el('div', 'card');
+        c3.appendChild(el('h3', null, '关于更新'));
+        c3.appendChild(el('p', 'sub', '更新之事由管理员行之：检查版本、发维护公告、待在线者下场而后替换。' +
+          '本账号非管理员，故不列更新之器。'));
+        body.appendChild(c3);
+      }
+    }
+
+    wrap.appendChild(body);
+    var foot = el('div', 'story-foot');
+    var b = el('button', 'btn', '合上');
+    b.addEventListener('click', function () { ov.classList.remove('on'); clear(ov); });
+    foot.appendChild(b);
+    wrap.appendChild(foot);
+    ov.appendChild(wrap);
+    ov.classList.add('on');
+    b.focus();
+  }
+
+  /* 管理员的更新之器：检查、施行（含待客）、维护公告、回滚 */
+  function adminCard() {
+    var A = root.ACCOUNT;
+    var card = el('div', 'card');
+    card.appendChild(el('h3', null, '管理 · 在线更新'));
+    var status = el('p', 'sub', '读取中…');
+    card.appendChild(status);
+    function refresh() {
+      A.adminStatus().then(function (r) {
+        if (!(r.body && r.body.ok)) { status.textContent = '未得管理之状（HTTP ' + r.code + '）：' + ((r.body && r.body.msg) || ''); return; }
+        var b = r.body;
+        status.textContent = '线上版本 ' + b.version + '　在线 ' + b.online + ' 客　账号 ' + b.accounts +
+          '　待客之限 ' + Math.round(b.drain.idleMs / 1000) + ' 秒（逾 ' + Math.round(b.drain.timeoutMs / 1000) + ' 秒强制）' +
+          '　' + (b.maintenance.on ? '维护之中' : '常态') +
+          (b.lastUpdate && b.lastUpdate.to ? '　上次更新至 ' + b.lastUpdate.to : '');
+      }).catch(function (e) { status.textContent = '未得管理之状：' + e.message; });
+    }
+    refresh();
+
+    var src = field('新版之源（Git 仓库地址或分支；亦可填本机目录）', 'text', 'https://github.com/liveldy/daihan-tugao', '');
+    card.appendChild(src);
+    card.appendChild(el('p', 'sub', '填 Git 地址则自远端取新版；填本机目录则直取其文件。检查不动线上，施行方替换。'));
+
+    var plan = el('div', 'acct-note', '');
+    card.appendChild(plan);
+    var acts = el('div', 'opts-row');
+    function sourceOf() {
+      var v = src.input.value.trim();
+      if (!v) { return null; }
+      return /^[a-zA-Z]:[\\/]|^\//.test(v) ? { dir: v } : { git: v, ref: 'main' };
+    }
+    var bChk = el('button', 'btn sm', '检查更新');
+    bChk.addEventListener('click', function () {
+      var s = sourceOf();
+      if (!s) { plan.textContent = '须指明新版之源'; return; }
+      plan.textContent = '检查中…';
+      A.adminCheck(s).then(function (r) {
+        var p = r.body && (r.body.plan || r.body);
+        if (!p || !p.ok) { plan.textContent = '检查未成：' + ((p && (p.errors || []).join('；')) || ('HTTP ' + r.code)); return; }
+        plan.textContent = '线上 v' + p.current + ' → 新版 v' + p.version + '　文件 ' + p.files +
+          '　新增 ' + p.added.length + '　改动 ' + p.changed.length + '　删除 ' + p.removed.length +
+          (p.same ? '（与线上无异）' : '');
+      }).catch(function (e) { plan.textContent = '检查未成：' + e.message; });
+    });
+    var bUpd = el('button', 'btn sm primary', '施行更新');
+    bUpd.addEventListener('click', function () {
+      var s = sourceOf();
+      if (!s) { plan.textContent = '须指明新版之源'; return; }
+      if (!root.confirm('施行更新？将先发维护公告、拒新登录，待在线诸客自然下场（逾时限则强制），然后替换站目录。')) { return; }
+      bUpd.disabled = true; plan.textContent = '更新中……维护公告既发，请勿关此页。';
+      refresh();
+      A.adminUpdate(s, null, true).then(function (r) {
+        var b = r.body || {};
+        plan.textContent = b.ok
+          ? ('更新已毕：v' + b.from + ' → v' + b.to + '，文件 ' + b.files + '，待客 ' +
+             Math.round((b.drained ? b.drained.waited : 0) / 1000) + ' 秒' + (b.drained && b.drained.forced ? '（强制）' : '') +
+             (b.same ? '（无须更新）' : ''))
+          : ('更新未成：' + (b.msg || ('HTTP ' + r.code)));
+        toast(b.ok ? '已更新至 v' + b.to : '更新未成');
+        bUpd.disabled = false;
+        refresh();
+        root.ACCOUNT.refresh();
+      }).catch(function (e) { plan.textContent = '更新未成：' + e.message; bUpd.disabled = false; });
+    });
+    var bDown2 = el('button', 'btn sm', '回滚旧版');
+    bDown2.addEventListener('click', function () {
+      if (!root.confirm('以留档之旧版复原？')) { return; }
+      A.adminRollback().then(function (r) {
+        plan.textContent = (r.body && r.body.ok) ? ('已回滚至 v' + r.body.version) : ('回滚未成：' + ((r.body && r.body.msg) || r.code));
+        refresh();
+      });
+    });
+    var bMaint = el('button', 'btn sm', '发维护公告');
+    bMaint.addEventListener('click', function () {
+      A.adminMaintenance(true, '例行之维护，请暂候；在线者请先上传存档。').then(function (r) {
+        toast(r.body && r.body.ok ? '公告已发' : '未成');
+        refresh();
+      });
+    });
+    var bMaintOff = el('button', 'btn sm', '撤维护公告');
+    bMaintOff.addEventListener('click', function () {
+      A.adminMaintenance(false, '').then(function (r) { toast(r.body && r.body.ok ? '公告已撤' : '未成'); refresh(); });
+    });
+    [bChk, bUpd, bDown2, bMaint, bMaintOff].forEach(function (b) { acts.appendChild(b); });
+    card.appendChild(acts);
+    return card;
+  }
+
+  /* 维护之屏：公告既下，则覆于其上，且许在局者先行存其档 */
+  function showMaintenance(info) {
+    var A = root.ACCOUNT;
+    var ov = $('overlay');
+    if (document.querySelector('.maint-wrap')) { return; }
+    clear(ov);
+    var wrap = el('div', 'ending-wrap maint-wrap');
+    wrap.appendChild(el('div', 'eyebrow', '维护之中'));
+    wrap.appendChild(el('div', 'verdict', '服务器正在更新'));
+    wrap.appendChild(el('div', 'etext',
+      (info && info.text ? info.text + '　' : '') +
+      '更新之中，新的登录暂不受理；在局者请先传其存档，待此屏自去，即可续战。'));
+    var foot = el('div', 'story-foot');
+    if (A.user()) {
+      var b = el('button', 'btn primary', '上传存档');
+      b.addEventListener('click', function () {
+        b.disabled = true; b.textContent = '上传中…';
+        A.uploadSave().then(function (r) {
+          b.textContent = (r.body && r.body.ok) ? '存档已上传' : '上传未成';
+        });
+      });
+      foot.appendChild(b);
+    }
+    var b2 = el('button', 'btn', '查看账号与更新');
+    b2.addEventListener('click', function () { showAccount(); });
+    foot.appendChild(b2);
+    wrap.appendChild(foot);
+    ov.appendChild(wrap);
+    ov.classList.add('on');
+  }
+
+  function hideMaintenance() {
+    var ov = $('overlay');
+    if (ov.querySelector('.maint-wrap')) { ov.classList.remove('on'); clear(ov); draw(); }
+  }
+
   /* ————— 典籍预览 ————— */
   function showLorePreview() {
     var ov = $('overlay');
@@ -1282,6 +1766,7 @@
       if (pick.lord) { startGame(pick.lord); }
     });
     if ($('btnLorePreview')) { $('btnLorePreview').addEventListener('click', showLorePreview); }
+    if ($('btnAccount')) { $('btnAccount').addEventListener('click', showAccount); }
     $('btnCourt').addEventListener('click', showCourt);
     if ($('btnStages')) { $('btnStages').addEventListener('click', showStages); }
 
@@ -1369,10 +1854,34 @@
       });
     }
     if (root.Art) { root.Art.onChange = function () { if (state) { draw(); } }; }
+
+    /* 版本之辨：正式版（自建服务端）有账号、云存档与更新；预览版（静态页）则无 */
+    if (root.ACCOUNT) {
+      root.ACCOUNT.onChange(function (ev) {
+        accountBadge();
+        if (ev === 'maintenance') { showMaintenance(root.ACCOUNT.state().maintenance); }
+        else if (ev === 'maintained') {
+          hideMaintenance();
+          var info = root.ACCOUNT.state();
+          toast('更新已毕，今为 v' + (info.serverVersion || '—'));
+          location.reload();
+        }
+      });
+      root.ACCOUNT.probe().then(function () {
+        accountBadge();
+        if (root.ACCOUNT.isRelease()) {
+          root.ACCOUNT.startPolling();
+          if (root.ACCOUNT.state().maintenance) { showMaintenance(root.ACCOUNT.state().maintenance); }
+        }
+      });
+    }
   };
   UI.startGame = startGame;
   UI.chooseLord = function (key) { startGame(key); };
   UI.state = function () { return state; };
   UI.view = function () { return view; };
+  UI.showCourt = function () { showCourt(); };
+  UI.showPolitics = function () { return openPolitics(); };
+  UI.showStages = function () { showStages(); };
   root.UI = UI;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -11,11 +11,12 @@ const FILES = [
   'src/data/map.js', 'src/data/factions.js',
   'src/data/scenarios_1.js', 'src/data/scenarios_2.js', 'src/data/scenarios_3.js',
   'src/data/progress.js',
+  'src/data/politics_1.js',
   'src/data/generals_1.js', 'src/data/generals_2.js', 'src/data/generals_3.js', 'src/data/generals_4.js',
   'src/data/lore.js',
   'src/data/stories_1.js', 'src/data/stories_2.js', 'src/data/stories_3.js',
   'src/data/stories_4.js', 'src/data/stories_5.js', 'src/data/stories_6.js', 'src/data/stories_7.js',
-  'src/core/rules.js', 'src/core/campaign.js', 'src/core/engine.js', 'src/core/story.js',
+  'src/core/rules.js', 'src/core/campaign.js', 'src/core/politics.js', 'src/core/engine.js', 'src/core/story.js',
   'src/core/tutor.js', 'src/core/ai.js'
 ];
 
@@ -126,12 +127,18 @@ for (let t = 0; t < turns && st.phase !== 'over'; t++) {
     if (best) Eng.moveTo(st, u.id, best.x, best.y);
   }
   const r = Eng.endTurn(st);
+  // 朝局：政争当场决断，议政与立储亦循常例为之（一君之朝，不作壁上观）
+  let guard3 = 0;
+  while (Eng.pendingPolitics(st) && guard3++ < 40) { Eng.resolvePolitics(st, 0); }
+  if (st.turn === 4 && Eng.heirCandidates(st).length) { Eng.setHeir(st, Eng.heirCandidates(st)[0].id); }
+  if (st.turn % 3 === 0) { const tp = Eng.courtTopics(st).filter(t => t.open)[0]; if (tp) { Eng.council(st, tp.id, 0); } }
   if (!r.ok) { console.error('回合结束异常：' + r.msg); errors++; }
 }
 console.log('推演 ' + turns + ' 回合：年份至 ' + st.year + '，我方城池 ' + Eng.countCities(st, st.player) +
   '，部曲 ' + st.units.filter(u => u.faction === st.player).length +
   '，金 ' + Math.round(st.factions[st.player].gold) + '，粮 ' + Math.round(st.factions[st.player].food) +
-  '，剧情章回 ' + chapters + '，结局 ' + (st.result ? (st.result.win ? '胜' : '败') : '未决'));
+  '，剧情章回 ' + chapters + '，朝局（党争 ' + Math.round(st.court.strife) + '／名分 ' + Math.round(st.court.legit) + '／储 ' + (st.court.heir ? st.court.heir.name : '未定') + '）' +
+  '，结局 ' + (st.result ? (st.result.win ? '胜' : '败') : '未决'));
 if (st.result) {
   const e = Story.endingFor(st);
   console.log('结局文案：' + (e ? e.title : '（缺）'));

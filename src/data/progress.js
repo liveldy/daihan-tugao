@@ -126,6 +126,27 @@
       }).join('　');
   }
 
+  /* 导出／载入：云存档即此二事（见 src/data/account.js 与 server/） */
+  function snapshot() { return JSON.parse(JSON.stringify(raw())); }
+
+  function restore(obj) {
+    if (!obj || typeof obj !== 'object') { return false; }
+    var next = blank();
+    next.v = obj.v || 1;
+    next.lords = {};
+    Object.keys(obj.lords || {}).forEach(function (k) {
+      var per = obj.lords[k] || {};
+      next.lords[k] = {};
+      Object.keys(per).forEach(function (sid) {
+        var e = per[sid] || {};
+        next.lords[k][sid] = { done: Math.max(0, Math.min(99, e.done || 0)), ts: e.ts || 0 };
+      });
+    });
+    mem = next;
+    save();
+    return true;
+  }
+
   root.PROGRESS = {
     KEY: KEY,
     done: done,
@@ -136,7 +157,9 @@
     scenarioOpen: scenarioOpen,
     tally: tally,
     lordTally: lordTally,
-    reset: reset
+    reset: reset,
+    snapshot: snapshot,
+    restore: restore
   };
   if (typeof module !== 'undefined' && module.exports) { module.exports = root.PROGRESS; }
 })(typeof window !== 'undefined' ? window : globalThis);

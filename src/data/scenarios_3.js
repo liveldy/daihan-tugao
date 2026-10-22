@@ -924,7 +924,7 @@
               id: 'sunquan_e228_5',
               name: '二宫之变',
               desc: '赤乌间太子和与鲁王霸分宫，朝臣结党相攻；此关深根固本，久持而后可图北。',
-              goal: { turns: 16 }
+              goal: { turns: 16, heir: true }
             },
             {
               id: 'sunquan_e228_6',
@@ -962,7 +962,7 @@
               id: 'sunxiu_e255_3',
               name: '即位诛綝',
               desc: '太平三年綝废孙亮而立休；休与张布、丁奉谋，诛綝于腊会，遂亲览万机。',
-              goal: { turns: 14 }
+              goal: { turns: 14, strife: 40 }
             },
             {
               id: 'sunxiu_e255_4',
@@ -1012,7 +1012,7 @@
               id: 'sunhao_e264_3',
               name: '诛兴与布',
               desc: '皓未几即诛濮阳兴、张布；其后骄暴多忌、好酒色而信巫觋，江东之望渐失。',
-              goal: { turns: 14 }
+              goal: { turns: 14, strife: 40 }
             },
             {
               id: 'sunhao_e264_4',

@@ -109,6 +109,9 @@
     };
     st.rng = mulberry32(st.seed);
 
+    // 朝局：党争、名分与储位（见 src/core/politics.js）
+    if (root.Politics) { root.Politics.init(st); }
+
     // 势力初始化
     Object.keys(MAP.FACTIONS).forEach(function (k) {
       st.factions[k] = {
@@ -608,6 +611,11 @@
         gold += (m.gold || 0);
         food += (m.food || 0);
       });
+      // 党争内耗：朝中朋党相攻，则岁入折损（每十点党争减岁入百分之四，至多四成）
+      if (k === st.player && st.court) {
+        var drag = 1 - Math.min(0.4, st.court.strife * 0.004);
+        gold *= drag; food *= drag;
+      }
       f.gold += Math.round(gold);
       f.food += Math.round(food);
       // 军粮
@@ -648,6 +656,7 @@
       }
     });
     // 在野之士游历
+    if (root.Politics) { root.Politics.tick(st); }
     maybeWanderers(st);
     refreshFog(st);
     checkDefeat(st);
@@ -838,6 +847,30 @@
     return fail('未知之举');
   }
 
+  /* ————— 朝局：议政、立储、政争 ————— */
+  /* 本处只作通政之口，实法皆在 src/core/politics.js，便于 Node 下推演 */
+  function pol() { return root.Politics; }
+
+  function council(st, topicId, optIdx) {
+    if (!pol()) { return fail('朝局未立'); }
+    return pol().council(st, topicId, optIdx);
+  }
+
+  function setHeir(st, candId) {
+    if (!pol()) { return fail('朝局未立'); }
+    return pol().setHeir(st, candId);
+  }
+
+  function politicsStatus(st) { return pol() ? pol().status(st) : null; }
+  function courtTopics(st) { return pol() ? pol().topicsFor(st) : []; }
+  function heirCandidates(st) { return pol() ? pol().candidates(st) : []; }
+  function pendingPolitics(st) { return pol() ? pol().pendingEvent(st) : null; }
+
+  function resolvePolitics(st, optIdx) {
+    if (!pol()) { return fail('朝局未立'); }
+    return pol().resolveEvent(st, optIdx);
+  }
+
   function ok_(msg, data) { return { ok: true, msg: msg, data: data }; }
   function fail(msg) { return { ok: false, msg: msg }; }
 
@@ -867,6 +900,13 @@
     countCities: countCities,
     checkStage: checkStage,
     goalStatus: goalStatus,
+    council: council,
+    setHeir: setHeir,
+    politicsStatus: politicsStatus,
+    courtTopics: courtTopics,
+    heirCandidates: heirCandidates,
+    pendingPolitics: pendingPolitics,
+    resolvePolitics: resolvePolitics,
     allGenerals: allGenerals,
     livingGenerals: livingGenerals,
     freeTilesNear: freeTilesNear
