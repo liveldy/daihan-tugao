@@ -49,13 +49,18 @@ CODE="$(curl -sS -o /tmp/dht-repo.json -w '%{http_code}' \
   -H "Authorization: Bearer $TOKEN" -H "Accept: application/vnd.github+json" \
   -H "X-GitHub-Api-Version: 2022-11-28" \
   -X POST "$API/user/repos" \
-  -d "{\"name\":\"$REPO_NAME\",\"private\":$PRIVATE,\"description\":\"代汉涂高 —— 广义三国（184–265）回合制战棋，依正史。纯静态，无依赖。\",\"has_issues\":true,\"has_wiki\":false}")"
+  -d "{\"name\":\"$REPO_NAME\",\"private\":$PRIVATE,\"description\":\"代汉涂高 —— 汉末三国（184 黄巾起事 — 265 晋王受禅）回合制战棋，依正史。纯静态，无依赖。\",\"has_issues\":true,\"has_wiki\":false}")"
 case "$CODE" in
   201) echo "已建新库：$LOGIN/$REPO_NAME" ;;
   422) echo "库已存在，沿用：$LOGIN/$REPO_NAME" ;;
   401|403) echo "token 无权建库（HTTP $CODE）—— 需 classic token 的 repo 权限。" >&2; exit 1 ;;
   *) echo "建库返回 HTTP $CODE：" >&2; cat /tmp/dht-repo.json >&2; echo >&2; exit 1 ;;
 esac
+
+# 二之半、已存在之库：刷新描述（建库那条路走不通，描述改了要另发一令）
+api -X PATCH "$API/repos/$LOGIN/$REPO_NAME" \
+  -d '{"description":"代汉涂高 —— 汉末三国（184 黄巾起事 — 265 晋王受禅）回合制战棋，依正史。纯静态，无依赖。","homepage":"https://'"$LOGIN"'.github.io/'"$REPO_NAME"'/"}' \
+  > /dev/null 2>&1 || echo "（刷新仓库描述失败，无碍）"
 
 # 三、推送 main
 URL_HTTPS="https://github.com/$LOGIN/$REPO_NAME.git"
