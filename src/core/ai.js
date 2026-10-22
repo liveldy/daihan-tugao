@@ -13,7 +13,7 @@
       .map(function (c) { return st.cities[c]; });
   }
 
-  function dist(a, b) { return Math.abs(a.x - b.x) + Math.abs(a.y - b.y); }
+  function dist(a, b) { return MAP.dist(a.x, a.y, b.x, b.y); }
   function key(x, y) { return x + ',' + y; }
 
   function hostile(st, a, b) {
@@ -32,10 +32,9 @@
     while (q.length) {
       var cur = q.shift();
       if (cur.x === goal.x && cur.y === goal.y) { found = true; break; }
-      var dirs = [[0, -1], [0, 1], [-1, 0], [1, 0]];
-      for (var i = 0; i < 4; i++) {
-        var nx = cur.x + dirs[i][0], ny = cur.y + dirs[i][1];
-        if (nx < 0 || ny < 0 || nx >= MAP.W || ny >= MAP.H) { continue; }
+      var dirs = MAP.neighbors(cur.x, cur.y);
+      for (var i = 0; i < dirs.length; i++) {
+        var nx = dirs[i][0], ny = dirs[i][1];
         var k = key(nx, ny);
         if (prev[k] !== undefined) { continue; }
         var t = Rules.terrainOf(st, nx, ny);
@@ -122,7 +121,7 @@
       var c = st.cities[cid];
       if (c.owner === k) { return; }
       if (c.owner !== 'neutral' && !hostile(st, k, c.owner)) { return; }
-      var d = Math.abs(c.x - center.x) + Math.abs(c.y - center.y);
+      var d = Math.hypot(c.x - center.x, c.y - center.y);
       var score = d + (c.garrison / 90) - c.level * 0.6 + (c.owner === 'neutral' ? 3 : 0);
       if (score < bs) { bs = score; best = c; }
     });
@@ -177,7 +176,7 @@
       // 无路可通，退而就近
       var bs = 1e9;
       reach.forEach(function (p) {
-        var d = Math.abs(p.x - goal.x) + Math.abs(p.y - goal.y) + p.cost * 0.1;
+        var d = MAP.dist(p.x, p.y, goal.x, goal.y) + p.cost * 0.1;
         if (d < bs) { bs = d; step = p; }
       });
     }

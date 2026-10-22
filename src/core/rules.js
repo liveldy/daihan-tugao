@@ -1,8 +1,11 @@
 /* 《代汉涂高》 — 兵制与战律
  * 纯函数，不碰 DOM，可在 Node 下直接测试。
+ * 舆图为正六边形网格，邻接与距离取 MAP.neighbors / MAP.dist（六边距离）。
  */
 (function (root) {
   'use strict';
+
+  var MAP = root.MAP;
 
   /* 兵种。atk/def 为「战力」，hp 为「兵力」，move 为「机动力」，range 为「射程」 */
   var UNITS = {
@@ -160,8 +163,8 @@
     while (frontier.length) {
       var cur = frontier.shift();
       if (cur.cost >= budget) { continue; }
-      [[0, -1], [0, 1], [-1, 0], [1, 0]].forEach(function (d) {
-        var nx = cur.x + d[0], ny = cur.y + d[1];
+      MAP.neighbors(cur.x, cur.y).forEach(function (nb) {
+        var nx = nb[0], ny = nb[1];
         var t = terrainOf(state, nx, ny);
         if (!t) { return; }
         if (!canEnter(def, t)) { return; }
@@ -188,8 +191,7 @@
 
   function inRange(state, unit, x, y) {
     var s = statsOf(unit, unit.generalRef);
-    var dx = Math.abs(unit.x - x), dy = Math.abs(unit.y - y);
-    var dist = dx + dy;
+    var dist = MAP.dist(unit.x, unit.y, x, y);
     if (dist > s.range) { return false; }
     if (dist === 0) { return false; }
     // 近战需相邻
@@ -216,6 +218,8 @@
     damage: damage,
     reachable: reachable,
     inRange: inRange,
+    dist: function (x1, y1, x2, y2) { return MAP.dist(x1, y1, x2, y2); },
+    neighbors: function (x, y) { return MAP.neighbors(x, y); },
     targetsFor: targetsFor,
     unitDef: unitDef
   };

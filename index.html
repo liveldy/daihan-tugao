@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>代汉涂高 · 三国君主战棋</title>
-<meta name="description" content="以广义三国为背景的回合制战棋策略游戏：自黄巾起义至司马炎称帝，择一君主，混一宇内。">
+<meta name="description" content="回合制战棋策略游戏：自中平元年黄巾起义至咸熙二年晋王受禅，择一君主，招兵买马，依史而行，混一宇内。">
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
@@ -16,7 +16,7 @@
       <div class="title-hero">
         <div class="seal-lg">漢</div>
         <h1>代漢塗高</h1>
-        <div class="sub">广义三国 · 君主战棋</div>
+        <div class="sub">汉末乱世 · 君主战棋</div>
         <p class="quote">「代汉者当涂高」——语出光武帝与公孙述书，见《后汉书·公孙述传》。<br>
           自中平元年黄巾起事，至咸熙二年晋王受禅，八十一载，十五家之主，二十五君之志。</p>
       </div>
@@ -45,6 +45,7 @@
         <button type="button" class="btn" id="btnPickBack" hidden>返回</button>
         <button type="button" class="btn" id="btnLorePreview">典籍</button>
         <a class="doc-link" href="dev.html">匠作志略</a>
+        <span class="ver" id="titleVer"></span>
         <button type="button" class="btn primary" id="btnStart" disabled>受命而起</button>
       </div>
     </div>
@@ -65,7 +66,7 @@
 
   <main class="main" id="main" hidden>
     <section class="stage" aria-label="舆图">
-      <canvas id="map" width="1200" height="800" aria-label="舆图"></canvas>
+      <canvas id="map" width="1200" height="694" aria-label="舆图"></canvas>
       <div class="intel" id="intel" hidden></div>
       <div class="tutor" id="tutor" hidden></div>
       <div class="stage-foot">
@@ -89,6 +90,7 @@
   <div class="toast-stack" id="toasts" aria-live="polite" aria-atomic="true"></div>
 </div>
 
+<script src="src/data/version.js"></script>
 <script src="src/data/map.js"></script>
 <script src="src/data/factions.js"></script>
 <script src="src/data/generals_1.js"></script>

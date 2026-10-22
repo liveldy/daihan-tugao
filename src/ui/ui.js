@@ -139,8 +139,11 @@
     $('topbar').hidden = false;
     $('main').hidden = false;
     var cv = $('map');
-    cv.width = MAP.W * root.Render.TS;
-    cv.height = MAP.H * root.Render.TS;
+    // 正六边形网格（尖顶、奇数行右移半格）之外框：宽 (W+0.5)·√3·s，高 ((H-1)·1.5+2)·s
+    var cols = MAP.W + 0.5;
+    var rows = 1.5 * (MAP.H - 1) + 2;
+    cv.width = 1200;
+    cv.height = Math.round(1200 * rows / (Math.sqrt(3) * cols));
     $('picker').hidden = true;
     $('mainMenu').hidden = true;
     toast(lord.name + '受命而起');
@@ -161,7 +164,7 @@
       var m = Rules.skillMods({ skills: g.skills.filter(function (s) { return s.kind === 'aura'; }) }, 'aura');
       state.units.forEach(function (v) {
         if (v.faction !== u.faction || v === u) { return; }
-        if (Math.abs(v.x - u.x) + Math.abs(v.y - u.y) > 1) { return; }
+        if (MAP.dist(v.x, v.y, u.x, u.y) > 1) { return; }
         v.auraAtk = (v.auraAtk || 0) + (m.atk || 0);
         v.auraDef = (v.auraDef || 0) + (m.def || 0);
         v.auraRange = (v.auraRange || 0) + (m.range || 0);
@@ -577,7 +580,7 @@
         pre.textContent = '可及此敌：预计斩获 ' + a.dmg + (a.counter > 1 ? '（相克 ×' + a.counter.toFixed(2) + '）' : a.counter < 1 ? '（被克 ×' + a.counter.toFixed(2) + '）' : '') +
           '　预计受创 约' + Math.round(c.dmg * 0.7);
       } else {
-        pre.textContent = '距我选中之军尚有 ' + (Math.abs(mine.x - u.x) + Math.abs(mine.y - u.y)) + ' 格（曼哈顿距离），不能及也。';
+        pre.textContent = '距我选中之军尚有 ' + MAP.dist(mine.x, mine.y, u.x, u.y) + ' 格（六边距离），不能及也。';
       }
       rows.appendChild(pre);
     }
@@ -1079,6 +1082,12 @@
   UI.boot = function () {
     buildTitle();
     wire();
+    var vt = $('titleVer');
+    if (vt && root.APP_VERSION) {
+      vt.textContent = 'v' + root.APP_VERSION.version;
+      vt.title = '第 ' + root.APP_VERSION.version + ' 版　' + root.APP_VERSION.name + '（' + root.APP_VERSION.date + '）\n' +
+        root.APP_VERSION.summary;
+    }
     if (root.Tutor) {
       root.Tutor.onEvent(function (ev) {
         if (ev.kind === 'closed' || ev.kind === 'finished') { nextStory(); }

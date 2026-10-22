@@ -43,7 +43,10 @@ window.DEV = {
               ["dev.html", "匠作志略（本页）独立页"],
               ["assets/style.css", "版式：素纸、墨线、朱印"],
               ["assets/img/", "美术资源：portraits units terrain banners cities，清单见其 MANIFEST.md"],
-              ["src/data/map.js", "舆图：30×20 格地形、86 座城池、25 家势力（含无主）、8 个剧本与其归属"],
+              ["VERSION", "版本号（四段，单行）——与 version.js、CHANGELOG.md 三者须一致"],
+              ["CHANGELOG.md", "改易之目：每版一条，最新者在上"],
+              ["src/data/version.js", "版本数据：号、期、名、一句提要、版本之法"],
+              ["src/data/map.js", "舆图：30×20 格正六边形地形、96 座城池、25 家势力（含无主）、8 个剧本与其归属"],
               ["src/data/factions.js", "六组十五家二十五君主、各人国策"],
               ["src/data/generals_1..4.js", "武将文臣（分卷）"],
               ["src/data/lore.js", "典籍条目"],
@@ -56,8 +59,9 @@ window.DEV = {
               ["src/core/tutor.js", "教战之场：教学十步"],
               ["src/core/ai.js", "诸侯庙算"],
               ["src/ui/art.js", "图象加载：探测与回退"],
-              ["src/ui/render.js", "舆图绘事（canvas）"],
+              ["src/ui/render.js", "舆图绘事（canvas，六边形）"],
               ["src/ui/ui.js", "界面机杼"],
+              ["src/ui/reader.js", "志略二页（兵书／匠作）共用之正文渲染"],
               ["src/main.js", "入口：DOM 既备则启动 UI.boot"],
               ["tools/", "校验、推演与资源清单（见「工具与自检」）"]
             ]
@@ -76,8 +80,24 @@ window.DEV = {
             "三、界面：art.js → render.js → ui.js",
             "四、入口：main.js"
           ],
-          note: "wiki.html 与 dev.html 只需各自的数据文件（wiki.js／dev.js）与 assets/style.css，不载引擎——故二页可在无游戏引擎时单独阅读。",
+          note: "wiki.html 与 dev.html 只需各自的数据文件（wiki.js／dev.js）、version.js 与 assets/style.css，不载引擎——故二页可在无游戏引擎时单独阅读。",
           src: "index.html；wiki.html；dev.html"
+        },
+        {
+          id: "version",
+          title: "版本号之制",
+          body: [
+            "版本号分四段：主 . 次 . 修订 . 构建。主号表格局之变（舆图、剧本、存档体系），次号表功能之增，修订号表修缺与调平，构建号每提交必增。凡有改动必升版本，不得只改文件而不记于 CHANGELOG.md。",
+            "同一版本号须同时出现于三处，缺一不可：仓库根目录的 VERSION 文件（单行纯文本）、src/data/version.js 中 APP_VERSION.version、CHANGELOG.md 最新一条的标题。tools/validate.js 逐条比对，三处不一即判校验未通过。",
+            "游戏主页面底栏与志略二页顶栏皆显此号（读 window.APP_VERSION），鼠标悬停可见版本名与提要。"
+          ],
+          list: [
+            "VERSION —— 四段版本号，单行，别无他物",
+            "src/data/version.js —— version、date、name、summary、scheme、stage",
+            "CHANGELOG.md —— 以「## x.y.z.w — 日期 — 名目」为标题，最新者在上"
+          ],
+          note: "版本号中最易漏者是 dev.html 与 wiki.html 的顶栏显示：二页须在 reader.js 之前载入 version.js，否则 window.APP_VERSION 取不到，版本位留空而不报错。",
+          src: "tools/validate.js · 版本号校验；src/data/version.js"
         },
         {
           id: "convention",
@@ -88,8 +108,9 @@ window.DEV = {
           list: [
             "数据文件写 window.XXX = { … }，不用 ESM；字符串内不得出现 script 的结束标签，否则标签提前闭合、整页皆废",
             "Node 下校验数据，须先造环境 sandbox.window = sandbox，再以 vm.runInContext 执行，否则取不到 window.XXX",
-            "城池 id 只能取 src/data/map.js 中 86 个之一；舆图格上的 tile.city 是对象而非 id 字符串，取其 id 须用 tile.city.id（此处曾抛 TypeError 致敌情牌截断）",
-            "舆图点击须按 canvas.width / rect.width 换算：画布内部为 1200×800，屏上被 CSS 缩放，径用 clientX 会误判格子",
+            "城池 id 只能取 src/data/map.js 中 96 个之一；舆图格上的 tile.city 是对象而非 id 字符串，取其 id 须用 tile.city.id（此处曾抛 TypeError 致敌情牌截断）",
+            "舆图点击须按 canvas.width / rect.width 换算：画布内部为 1200×693（六边形外框之宽高比所定），屏上被 CSS 缩放，径用 clientX 会误判格子",
+            "舆图为尖顶正六边形、奇数行右移半格。邻接与距离只可取自 MAP.neighbors／MAP.dist，不得再用 |dx|+|dy|：四邻写法在本图上是错的（斜向四格亦相邻），且六边距离须先化轴向坐标再取立方距离",
             "兵种数值键有白名单（见「技能数值键白名单」）；白名单外之键虽载于数据，引擎不取",
             "剧情 effect 亦有白名单（见「剧情效果」）；enemyTroops 取负数；{ lost: … } 之写法引擎未实现、永不触发",
             "行尾不一：src/data/wiki.js 等为 CRLF，其余多为 LF；以脚本改写文件时须留意"
@@ -113,7 +134,7 @@ window.DEV = {
           table: {
             head: ["文件", "顶层键", "内容"],
             rows: [
-              ["src/data/map.js", "MAP", "W／H／grid（30×20 格）、TERRAIN、CITIES（86）、FACTIONS（25）、ERAS（8）、ownersOf"],
+              ["src/data/map.js", "MAP", "W／H／grid（30×20 格正六边形）、TERRAIN、CITIES（96）、FACTIONS（25）、ERAS（8）、ownersOf、neighbors／dist（六邻与六边距离）"],
               ["src/data/factions.js", "FACTIONS_DATA", "GROUPS（6）、ENTRIES（15）、LORDS（25）、MECHS（国策）"],
               ["src/data/generals_1..4.js", "GENERALS／GENERALS_PART1..4", "武将文臣，按 faction 分组"],
               ["src/data/lore.js", "LORE", "典籍六类条目"],
@@ -602,7 +623,7 @@ window.DEV = {
           ],
           list: [
             "命令：node tools/validate.js",
-            "所校之目：舆图尺寸与城池／势力数、各剧本 86 城归属齐备、可择之君与分组条目数、武将人数与技能白名单、典籍分类、故事线章回与场景／抉择数、君主首府须属本势力、武将 id 跨卷不重、wiki 与 dev 之结构（门／条／id 唯一／表格行列齐整）",
+            "所校之目：舆图尺寸与城池／势力数、各剧本 96 城归属齐备、可择之君与分组条目数、武将人数与技能白名单、典籍分类、故事线章回与场景／抉择数、君主首府须属本势力、武将 id 跨卷不重、wiki 与 dev 之结构（门／条／id 唯一／表格行列齐整）",
             "末以全 25 主各推演 12 回合，验引擎自洽"
           ],
           note: "新增数据后必跑一次；校验通过是本作交付的底线。",
@@ -671,7 +692,7 @@ window.DEV = {
             "node tools/validate.js —— 必跑；校验含「君主首府须属本势力且该势力至少一城」",
             "node tools/art_manifest.js —— 刷新图象清单"
           ],
-          note: "首府（capital）之 id 只能取 src/data/map.js 中 86 城之一，且必须在该君主所属势力的城池之内——此条最易出错。",
+          note: "首府（capital）之 id 只能取 src/data/map.js 中 96 城之一，且必须在该君主所属势力的城池之内——此条最易出错。",
           src: "src/data/factions.js；src/core/rules.js；src/core/story.js · allStories"
         },
         {

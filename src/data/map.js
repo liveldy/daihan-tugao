@@ -1,5 +1,7 @@
 /* 《代汉涂高》 — 舆图
  * 30 × 20 格，西起流沙，东尽乐浪，北抵阴山，南极交趾。
+ * 格局为正六边形（尖顶、奇数行右移半格），每格六邻：东西南北四邻之外，
+ * 更有东北、西北、东南、西南，故行军与射程皆按六边距离计，非曼哈顿距离。
  * 图例：. 平原  h 丘陵  ^ 山地  # 森林  = 沼泽  d 大漠  ~ 江海  p 津渡
  */
 (function (root) {
@@ -8,24 +10,24 @@
   var W = 30, H = 20;
 
   var RAW = [
-    'd d d d d h h h h ^ ^ ^ h h h h h h h h h ^ ^ h h h h h # #',
-    'd d h h h h h h ^ ^ ^ h h h h h h h h h h h h ^ ^ h h h # ~',
-    'd d h h h h h h h h h h ^ h h h h h h h h h h h ^ ^ ^ h h ~',
-    'd h h h h h h h h h h h ^ h h h h h h h h h ^ h h h h h ~ ~',
-    'd h h h h h h h h h h h h . . . . . . . . . . h h h h h ~ ~',
-    'd h h h h h h h h h h h ^ . . . ~ ~ . . . . . h h h h h ~ ~',
-    'd h h h h h h ~ ~ ~ ~ ~ ~ ~ ~ ~ . . . . . . . h h h h h ~ ~',
-    'd h h h h h ~ ~ ~ ~ ~ ~ . . . . . . . . . . . . . . h h ~ ~',
-    'd h h h h h h h . . . . . . . . . . . . . . . . . . h h ~ ~',
-    'd h h h h h ^ h h ^ ^ h . . . . . . . . . . . h h h h h ~ ~',
-    'd d ^ ^ h h h h . h h h . . . . . . . . . . . h h h h h ~ ~',
-    'd h ^ ^ h h . . . . . . . . . . . . . . . . ~ ~ ~ ~ ~ ~ ~ ~',
-    'h h ^ ^ h h h h . . . . . . . . . ~ ~ ~ ~ ~ . . . . h h ~ ~',
-    'h h ^ ^ h h h h h ~ ~ ~ ~ ~ ~ ~ ~ . . . . . . . . h h h ~ ~',
-    'h h h h h h h h h h h . . . . . . . . . . . . . . h h h ~ ~',
-    'h h h h h h h h h h h . . . . . . . . . . . . . . h h ~ ~ ~',
-    'h h h h h h h h h h h # # # # # # # # # # # # h h h ~ ~ ~ ~',
-    'h h h h h h h h h h h # # # # # # # # # # # # h h h ~ ~ ~ ~',
+    'd d d d d h h h h ^ ^ ^ h h ^ h h h h h h ^ ^ h h h h # # #',
+    'd d h h h h h h ^ ^ ^ h h h h h # h h ^ h h h ^ ^ h h h # ~',
+    'd d h h h h h h h h h h ^ h h h h # h h h h h h ^ ^ ^ h h ~',
+    'd h h h h h h h h h h h ^ h = h h h h h h h ^ h h h h h ~ ~',
+    'd h h h h h h h h h h h ^ . . . . . . . . . . h h h h h ~ ~',
+    'd h h h h h h h h h h h ^ . . . ~ = . . . . . h h h h h ~ ~',
+    'd h h h h h h ~ ~ p ~ ~ ~ ~ ~ ~ . . . . . . . h h h h h ~ ~',
+    'd h h h h h ~ ~ p ~ ~ ~ . . . . . . . . . . . . . . h h ~ ~',
+    'd h ^ h h h h h . . . . . . . . . . . . . . . . . . h h ~ ~',
+    'd h h h h h ^ h h ^ ^ h . . . . # . . . . . . h h h h h ~ ~',
+    'd d ^ ^ h h h h . h h h . . . . ^ . . . . . . h h h h h ~ ~',
+    'd h ^ ^ h h = . . . . . . . . . . . . . . . p ~ ~ ~ ~ ~ ~ ~',
+    'h h ^ ^ h h h h . . . = . . . . . ~ ~ p ~ ~ . . . . h h ~ ~',
+    'h h ^ ^ h h h h h ~ ~ ~ p ~ ~ ~ ~ . . . . . . = . h # h ~ ~',
+    'h h h h h h h h h h h # . . . . . . . . . . . . . h h h ~ ~',
+    'h h h h h h h h h h h . . . . . . . . . . . . # . h h ~ ~ ~',
+    'h h h h h h h h h h = # # # # # # # # # # # # h h h ~ ~ ~ ~',
+    'h h h h h h h h h h h # # # # # # # h # # # # h h h ~ ~ ~ ~',
     'h h h ^ ^ ^ h h h h h # # # # # # # # # # # # h h ~ ~ ~ ~ ~',
     'h h h h h h h h h h # # # # # # # # # # h h h h ~ ~ ~ ~ ~ ~'
   ];
@@ -49,6 +51,7 @@
     ['juyan',      '居延',    '凉州', '关隘',  1,  0,  20,  20, '居延塞，汉长城极西，遮虏障故址。'],
     ['dunhuang',   '敦煌',    '凉州', '县城',  0,  2,  30,  40, '西域孔道，丝路咽喉，玉门阳关皆在其西。'],
     ['zhangye',    '张掖',    '凉州', '重镇',  1,  3,  40,  50, '河西四郡之一，张国臂掖以通西域。'],
+    ['jiuquan',    '酒泉',    '凉州', '县城',  1,  2,  30,  40, '河西四郡之一，金泉之侧，通西域之要。'],
     ['gudu',       '姑臧',    '凉州', '州治',  2,  4,  60,  60, '凉州刺史治所，羌胡杂居，畜牧为业。'],
     ['jincheng',   '金城',    '凉州', '重镇',  1,  6,  45,  45, '黄河渡口，控扼河湟，汉末为边患所自起。'],
     ['xiping',     '西平',    '凉州', '县城',  2,  6,  30,  35, '湟中之地，羌人腹心。'],
@@ -56,6 +59,7 @@
     ['tianshui',   '天水',    '凉州', '重镇',  5,  6,  55,  55, '汉阳旧郡，陇上咽喉，陇关所依。'],
     ['anding',     '安定',    '凉州', '县城',  6,  6,  35,  40, '泾水上游，胡汉交界。'],
     ['wudu',       '武都',    '凉州', '县城',  5,  9,  30,  40, '氐羌杂处，阴平道自此而南。'],
+    ['jieting',    '街亭',    '凉州', '关隘',  6,  8,  25,  30, '街泉亭，略阳之要，诸葛亮使马谡拒张郃于此。'],
     // —— 关中·司隶 ——
     ['chencang',   '陈仓',    '雍州', '重镇',  7,  8,  40,  45, '散关以北，陈仓道起点，通汉中之北道。'],
     ['changan',    '长安',    '雍州', '都城',  8,  8, 150, 120, '西汉旧都，三辅核心，董卓、李傕先后据之。'],
@@ -64,6 +68,7 @@
     ['luoyang',    '洛阳',    '司隶', '都城', 11,  8, 160, 130, '东汉都城，宫室焚于董卓，灵台石经犹存。'],
     // —— 并州·塞外 ——
     ['danhan',     '弹汗山',  '并州', '县城', 12,  0,  20,  20, '檀石槐王庭，鲜卑所都。'],
+    ['shuofang',   '朔方',    '并州', '县城',  6,  0,  25,  30, '河套之地，汉置朔方郡，后为匈奴鲜卑所居。'],
     ['meiji',      '美稷',    '并州', '县城',  7,  1,  20,  25, '南匈奴单于庭，入居塞内已百余年。'],
     ['yunzhong',   '云中',    '并州', '县城',  9,  2,  25,  30, '阴山南麓，匈奴故地，赵武灵王所置。'],
     ['yanmen',     '雁门',    '并州', '关隘', 11,  1,  30,  35, '雁门关，御北之要，李广、牵招尝守。'],
@@ -78,6 +83,8 @@
     ['pingyuan',   '平原',    '冀州', '县城', 18,  5,  40,  45, '平原郡，刘备尝为相。'],
     // —— 幽州 ——
     ['liucheng',   '柳城',    '幽州', '县城', 20,  0,  25,  30, '乌桓王庭所在，蹋顿所居。'],
+    ['shanggu',    '上谷',    '幽州', '重镇', 16,  0,  35,  40, '上谷郡，居庸关外，通塞北之道。'],
+    ['daijun',     '代郡',    '幽州', '县城', 13,  1,  30,  35, '代郡，汉初代国之故地，北接鲜卑。'],
     ['zhuojun',    '涿郡',    '幽州', '县城', 16,  1,  35,  45, '刘备、张飞故里，贩履织席之地。'],
     ['ji',         '蓟',      '幽州', '州治', 17,  1,  60,  70, '幽州治所，北接乌桓，突骑所出。'],
     ['yuyang',     '渔阳',    '幽州', '县城', 18,  1,  30,  40, '渔阳突骑名天下，彭宠尝据此叛。'],
@@ -91,6 +98,7 @@
     // —— 青州 ——
     ['linzi',      '临淄',    '青州', '州治', 20,  5,  70,  75, '齐故都，青州富庶，盐铁之利。'],
     ['beihai',     '北海',    '青州', '重镇', 21,  6,  55,  60, '孔融尝为相，海道通辽东。'],
+    ['donglai',    '东莱',    '青州', '重镇', 25,  4,  45,  50, '东莱郡，煮海为盐，浮海通辽东、三韩。'],
     // —— 兖州 ——
     ['puyang',     '濮阳',    '兖州', '重镇', 16,  6,  55,  55, '兖州治所，临黄河，曹操与吕布相持于此。'],
     ['juancheng',  '鄄城',    '兖州', '重镇', 17,  7,  55,  55, '曹操初起之根据，荀彧、程昱守之。'],
@@ -101,6 +109,7 @@
     ['pengcheng',  '彭城',    '徐州', '重镇', 19,  8,  55,  55, '楚汉旧都，南北通衢。'],
     ['xiapi',      '下邳',    '徐州', '重镇', 20,  8,  60,  60, '吕布殒命之地，泗水所经。'],
     ['guangling',  '广陵',    '徐州', '港口', 21, 10,  45,  50, '临江濒海，漕运所出，陈登尝守之。'],
+    ['langya',     '琅邪',    '徐州', '县城', 23,  8,  40,  45, '琅邪郡，诸葛亮故里，滨海产盐。'],
     // —— 豫州 ——
     ['xuchang',    '许昌',    '豫州', '都城', 15,  8, 130, 120, '汉献帝都许，屯田之基，曹魏五都之一。'],
     ['runan',      '汝南',    '豫州', '重镇', 16,  9,  55,  55, '袁氏门生故吏之乡，号称多士。'],
@@ -130,11 +139,14 @@
     // —— 益州 ——
     ['yangping',   '阳平关',  '益州', '关隘',  8,  9,  30,  35, '汉中北门，张卫拒曹操于此。'],
     ['hanzhong',   '汉中',    '益州', '重镇',  8, 10,  70,  75, '张鲁所据，五斗米道之枢，北瞰关中。'],
+    ['shangyong',  '上庸',    '益州', '县城', 10, 10,  35,  40, '东三郡之一，汉水上游，孟达所守。'],
     ['jiange',     '剑阁',    '益州', '关隘',  7, 10,  30,  35, '蜀北天险，一夫当关，万夫莫开。'],
     ['jiameng',    '葭萌',    '益州', '县城',  7, 11,  30,  35, '刘备入蜀驻此，后为汉寿。'],
+    ['langzhong',  '阆中',    '益州', '县城',  8, 11,  40,  45, '巴西郡治，嘉陵江环其三面，张飞尝镇此。'],
     ['zitong',     '梓潼',    '益州', '重镇',  7, 12,  40,  45, '梓潼郡，剑阁之后，涪水所经。'],
     ['mianzhu',    '绵竹',    '益州', '重镇',  6, 12,  45,  50, '成都北门，诸葛瞻父子死节处。'],
     ['luoxian',    '雒县',    '益州', '重镇',  6, 13,  50,  55, '广汉郡治，庞统中流矢处。'],
+    ['jianwei',    '犍为',    '益州', '县城',  8, 13,  35,  40, '犍为郡，岷江之滨，盐井所出。'],
     ['chengdu',    '成都',    '益州', '都城',  5, 13, 150, 140, '益州治所，天府之国，织锦之利。'],
     ['jiangzhou',  '江州',    '益州', '重镇',  9, 12,  55,  55, '巴郡治所，两江交汇，严颜所守。'],
     ['yongan',     '永安',    '益州', '关隘', 11, 12,  40,  45, '白帝城，三峡门户，刘备托孤于此。'],
@@ -203,6 +215,7 @@
         'julu': 'huangjin', 'runan': 'huangjin', 'wan': 'huangjin', 'shangdang': 'huangjin',
         'jincheng': 'qiang', 'xiping': 'qiang', 'gudu': 'qiang', 'zhangye': 'qiang',
         'anding': 'qiang', 'tianshui': 'qiang', 'longxi': 'qiang', 'wudu': 'qiang',
+        'jiuquan': 'qiang', 'jieting': 'qiang', 'shuofang': 'nanxiong',
         'danhan': 'xianbei', 'meiji': 'nanxiong', 'liucheng': 'wuhuan', 'yunzhong': 'xianbei',
         'jiaozhi': 'jiao', 'longbian': 'jiao', 'cangwu': 'jiao', 'nanhai': 'jiao',
         'liaodong': 'neutral', 'xiangping': 'neutral', 'xuantu': 'neutral', 'lelang': 'neutral'
@@ -222,7 +235,7 @@
         'chencang': 'dong', 'anding': 'dong', 'tianshui': 'dong', 'longxi': 'dong',
         'jincheng': 'dong', 'xiping': 'dong', 'gudu': 'dong', 'zhangye': 'dong', 'dunhuang': 'dong',
         'ye': 'yuan', 'julu': 'yuan', 'changshan': 'yuan', 'xindu': 'yuan', 'nanpi': 'yuan', 'pingyuan': 'yuan',
-        'jinyang': 'yuan', 'shangdang': 'yuan', 'yanmen': 'yuan', 'yunzhong': 'yuan',
+        'jinyang': 'yuan', 'shangdang': 'yuan', 'yanmen': 'yuan', 'yunzhong': 'yuan', 'shuofang': 'yuan',
         'ji': 'han', 'zhuojun': 'han', 'yuyang': 'han', 'youbeiping': 'han', 'liaoxi': 'han',
         'xiangping': 'liaodong', 'liaodong': 'liaodong', 'xuantu': 'liaodong', 'lelang': 'liaodong',
         'chengdu': 'yi', 'hanzhong': 'hanzhong',
@@ -230,7 +243,8 @@
         'changsha': 'wu',
         'xuchang': 'han', 'runan': 'han', 'qiao': 'han', 'chenliu': 'han', 'puyang': 'han',
         'danhan': 'xianbei', 'meiji': 'nanxiong', 'liucheng': 'wuhuan',
-        'yangping': 'hanzhong', 'jiange': 'yi', 'jiameng': 'yi'
+        'yangping': 'hanzhong', 'jiange': 'yi', 'jiameng': 'yi',
+        'shangyong': 'hanzhong',
       }
     },
     e194: {
@@ -247,15 +261,18 @@
         'tongguan': 'dong', 'chencang': 'dong', 'anding': 'dong', 'tianshui': 'dong',
         'longxi': 'dong', 'wudu': 'dong', 'jincheng': 'liang', 'xiping': 'liang',
         'gudu': 'liang', 'zhangye': 'liang', 'dunhuang': 'liang', 'juyan': 'liang',
+        'jiuquan': 'liang',
         'shangdang': 'huangjin',
         'ji': 'yuan', 'zhuojun': 'yuan', 'yuyang': 'yuan', 'youbeiping': 'yuan', 'liaoxi': 'yuan',
         'xiangping': 'liaodong', 'liaodong': 'liaodong', 'xuantu': 'liaodong', 'lelang': 'liaodong',
         'beihai': 'han', 'linzi': 'wei',
         'hanzhong': 'hanzhong', 'yangping': 'hanzhong',
+        'shangyong': 'hanzhong',
         'lujiang': 'wu', 'shouchun': 'zhong', 'wan': 'zhong', 'runan': 'zhong',
         'xuchang': 'wei', 'qiao': 'wei', 'chenliu': 'wei', 'puyang': 'wei', 'juancheng': 'wei',
         'danhan': 'xianbei', 'meiji': 'nanxiong', 'liucheng': 'wuhuan',
-        'yunzhong': 'xianbei'
+        'yunzhong': 'xianbei',
+        'shuofang': 'xianbei',
       }
     },
     e199: {
@@ -270,15 +287,18 @@
       overrides: {
         'changan': 'dong', 'hongnong': 'wei', 'luoyang': 'wei', 'tongguan': 'dong',
         'chencang': 'dong', 'anding': 'dong', 'tianshui': 'dong', 'longxi': 'dong',
+        'jieting': 'dong',
         'jincheng': 'liang', 'xiping': 'liang', 'gudu': 'liang', 'zhangye': 'liang',
         'dunhuang': 'liang', 'juyan': 'liang', 'wudu': 'liang',
         'ji': 'yuan', 'zhuojun': 'yuan', 'yuyang': 'yuan', 'youbeiping': 'yuan', 'liaoxi': 'yuan',
         'shangdang': 'yuan', 'jinyang': 'yuan',
         'xiangping': 'liaodong', 'liaodong': 'liaodong', 'xuantu': 'liaodong', 'lelang': 'liaodong',
         'hanzhong': 'hanzhong', 'yangping': 'hanzhong',
+        'shangyong': 'hanzhong',
         'wan': 'wan', 'xinye': 'jing',
         'shouchun': 'wu', 'lujiang': 'wu', 'hefei': 'wei', 'guangling': 'wei',
-        'danhan': 'xianbei', 'meiji': 'nanxiong', 'liucheng': 'wuhuan', 'yunzhong': 'xianbei'
+        'danhan': 'xianbei', 'meiji': 'nanxiong', 'liucheng': 'wuhuan', 'yunzhong': 'xianbei',
+        'shuofang': 'xianbei',
       }
     },
     e208: {
@@ -293,11 +313,13 @@
       overrides: {
         'changan': 'wei', 'tongguan': 'wei', 'chencang': 'wei', 'anding': 'wei',
         'tianshui': 'wei', 'longxi': 'wei', 'wudu': 'wei', 'hongnong': 'wei',
+        'jieting': 'wei',
         'jincheng': 'liang', 'xiping': 'liang', 'gudu': 'liang', 'zhangye': 'liang',
         'dunhuang': 'liang', 'juyan': 'liang',
         'xiangping': 'liaodong', 'liaodong': 'liaodong', 'xuantu': 'liaodong', 'lelang': 'liaodong',
         'liaoxi': 'liaodong', 'youbeiping': 'liaodong',
         'hanzhong': 'hanzhong', 'yangping': 'hanzhong',
+        'shangyong': 'hanzhong',
         'jiangling': 'wei', 'jiangxia': 'wei', 'xiangyang': 'wei', 'fancheng': 'wei',
         'changsha': 'wei', 'wuling': 'wei', 'lingling': 'wei', 'guiyang': 'wei',
         'xinye': 'shu', 'wan': 'wei',
@@ -305,6 +327,7 @@
         'chaisang': 'wu', 'yuzhang': 'wu', 'poyang': 'wu', 'danyang': 'wu', 'jianye': 'wu',
         'wu': 'wu', 'kuaiji': 'wu', 'jianan': 'wu',
         'danhan': 'xianbei', 'meiji': 'nanxiong', 'liucheng': 'wuhuan', 'yunzhong': 'xianbei',
+        'shuofang': 'xianbei',
         'chengdu': 'yi', 'jiangzhou': 'yi'
       }
     },
@@ -324,10 +347,12 @@
         'wu': 'wu', 'kuaiji': 'wu', 'jianan': 'wu', 'lujiang': 'wu',
         'shouchun': 'wei', 'hefei': 'wei', 'guangling': 'wei', 'xinye': 'wei',
         'hanzhong': 'shu', 'yangping': 'shu', 'wudu': 'wei', 'yongan': 'shu',
+        'shangyong': 'wei',
         'jianning': 'shu', 'dianchi': 'shu',
         'xiangping': 'liaodong', 'liaodong': 'liaodong', 'xuantu': 'liaodong', 'lelang': 'liaodong',
         'nanhai': 'wu', 'cangwu': 'wu', 'longbian': 'jiao', 'jiaozhi': 'jiao',
-        'danhan': 'xianbei', 'meiji': 'nanxiong', 'liucheng': 'wuhuan', 'yunzhong': 'xianbei'
+        'danhan': 'xianbei', 'meiji': 'nanxiong', 'liucheng': 'wuhuan', 'yunzhong': 'xianbei',
+        'shuofang': 'xianbei',
       }
     },
     e228: {
@@ -343,12 +368,14 @@
         'wan': 'jin', 'xinye': 'jin', 'xiangyang': 'wei', 'fancheng': 'wei',
         'jiangling': 'wei', 'jiangxia': 'wu',
         'hanzhong': 'shu', 'yangping': 'shu', 'jiange': 'shu', 'jiameng': 'shu',
+        'shangyong': 'wei',
         'zitong': 'shu', 'mianzhu': 'shu', 'luoxian': 'shu', 'chengdu': 'shu',
         'jiangzhou': 'shu', 'yongan': 'shu', 'jianning': 'shu', 'dianchi': 'shu',
         'wudu': 'wei', 'yinping': 'wei', 'tianshui': 'wei', 'longxi': 'wei', 'anding': 'wei',
         'xiangping': 'liaodong', 'liaodong': 'liaodong', 'xuantu': 'liaodong', 'lelang': 'liaodong',
         'nanhai': 'wu', 'cangwu': 'wu', 'longbian': 'jiao', 'jiaozhi': 'jiao',
-        'danhan': 'xianbei', 'meiji': 'nanxiong', 'liucheng': 'wuhuan', 'yunzhong': 'xianbei'
+        'danhan': 'xianbei', 'meiji': 'nanxiong', 'liucheng': 'wuhuan', 'yunzhong': 'xianbei',
+        'shuofang': 'xianbei',
       }
     },
     e255: {
@@ -365,16 +392,48 @@
         'wan': 'jin', 'xinye': 'jin', 'xiangyang': 'jin', 'fancheng': 'jin',
         'jiangling': 'jin', 'jiangxia': 'wu',
         'hanzhong': 'shu', 'yangping': 'shu', 'jiange': 'shu', 'jiameng': 'shu',
+        'shangyong': 'wei',
         'zitong': 'shu', 'mianzhu': 'shu', 'luoxian': 'shu', 'chengdu': 'shu',
         'jiangzhou': 'shu', 'yongan': 'shu', 'jianning': 'shu', 'dianchi': 'shu',
         'wudu': 'shu', 'tianshui': 'wei', 'longxi': 'wei',
         'xiangping': 'jin', 'liaodong': 'jin', 'xuantu': 'jin', 'lelang': 'jin',
         'nanhai': 'wu', 'cangwu': 'wu', 'longbian': 'jiao', 'jiaozhi': 'jiao',
         'danhan': 'xianbei', 'meiji': 'nanxiong', 'liucheng': 'wuhuan', 'yunzhong': 'xianbei',
+        'shuofang': 'xianbei',
         'shangdang': 'wei', 'jinyang': 'jin'
       }
     }
   };
+
+  /* —— 六边形网格的邻接与距离 ——
+   * 布局：尖顶正六边形，奇数行相对偶数行右移半格。
+   * 偶数行 y 之六邻：东 (x+1,y)　西 (x-1,y)　东北 (x,y-1)　西北 (x-1,y-1)　东南 (x,y+1)　西南 (x-1,y+1)
+   * 奇数行 y 之六邻：东 (x+1,y)　西 (x-1,y)　东北 (x+1,y-1)　西北 (x,y-1)　东南 (x+1,y+1)　西南 (x,y+1)
+   * 邻接关系对称：甲为乙之东北邻，则乙必为甲之西南邻。
+   */
+  var NB_EVEN = [[1, 0], [-1, 0], [0, -1], [-1, -1], [0, 1], [-1, 1]];
+  var NB_ODD = [[1, 0], [-1, 0], [1, -1], [0, -1], [1, 1], [0, 1]];
+  var NB_NAME = ['东', '西', '东北', '西北', '东南', '西南'];
+
+  function neighbors(x, y) {
+    var d = (y & 1) ? NB_ODD : NB_EVEN;
+    var out = [];
+    for (var i = 0; i < 6; i++) {
+      var nx = x + d[i][0], ny = y + d[i][1];
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H) { continue; }
+      out.push([nx, ny]);
+    }
+    return out;
+  }
+
+  /* 偏置坐标 → 轴向坐标（q, r），再依六边距离公式计数 */
+  function toAxial(x, y) { return { q: x - ((y - (y & 1)) >> 1), r: y }; }
+
+  function dist(x1, y1, x2, y2) {
+    var a = toAxial(x1, y1), b = toAxial(x2, y2);
+    var dq = a.q - b.q, dr = a.r - b.r;
+    return (Math.abs(dq) + Math.abs(dq + dr) + Math.abs(dr)) / 2;
+  }
 
   /* —— 构建 —— */
   function buildGrid() {
@@ -403,10 +462,10 @@
       tile.city = c;
       c.terrain = tile.terrain;
     });
-    // 临水判定
+    // 临水判定（按六邻）
     CITIES.forEach(function (c) {
-      [[0, -1], [0, 1], [-1, 0], [1, 0]].forEach(function (d) {
-        var t = g[c.y + d[1]] && g[c.y + d[1]][c.x + d[0]];
+      neighbors(c.x, c.y).forEach(function (p) {
+        var t = g[p[1]][p[0]];
         if (t && t.terrain === 'water') { c.port = true; }
       });
     });
@@ -427,6 +486,7 @@
 
   root.MAP = {
     W: W, H: H,
+    HEX: true,
     RAW: RAW,
     TERRAIN: TERRAIN,
     CITIES: CITIES,
@@ -434,7 +494,10 @@
     FACTIONS: FACTIONS,
     ERAS: ERAS,
     grid: buildGrid(),
-    ownersOf: ownersOf
+    ownersOf: ownersOf,
+    neighbors: neighbors,
+    dist: dist,
+    NB_NAME: NB_NAME
   };
 
   if (typeof module !== 'undefined' && module.exports) { module.exports = root.MAP; }

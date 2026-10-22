@@ -1,8 +1,11 @@
-/* 《代汉涂高》 — 舆图绘事（纯 canvas，无外部资源） */
+/* 《代汉涂高》 — 舆图绘事（纯 canvas，无外部资源）
+ * 舆图为尖顶正六边形网格：奇数行相对偶数行右移半格。
+ * 一格之内，画、点、算三者同出一源（HEX 布局），故所画即所点。
+ */
 (function (root) {
   'use strict';
 
-  var TS = 40;
+  var SQ3 = Math.sqrt(3);
 
   var PAL = {
     plain: '#ddd1b3', hill: '#cbbd9b', mount: '#ada080', forest: '#a7b08e',
@@ -17,20 +20,74 @@
 
   var CITY_KIND = { '都城': 'duzhou', '州治': 'zhouzhi', '重镇': 'zhongzhen', '县城': 'xiancheng', '关隘': 'guanai', '港口': 'gangkou' };
 
-  function drawMountains(ctx, px, py, size) {
+  /* ————— 六边形布局 —————
+   * s  外接圆半径（心至角）
+   * w  横向对边距 = √3·s ； h 纵向对角距 = 2s ； ystep 行距 = 1.5s
+   * 全图宽 = (W + 0.5)·w （奇数行各多探出半格）；全图高 = (H-1)·ystep + h
+   */
+  function layout(ctx) {
+    var W = root.MAP.W, H = root.MAP.H;
+    var cw = ctx.canvas.width, ch = ctx.canvas.height;
+    var s = Math.min(cw / (SQ3 * (W + 0.5)), ch / (1.5 * (H - 1) + 2));
+    var w = SQ3 * s, h = 2 * s, ystep = 1.5 * s;
+    return {
+      s: s, w: w, h: h, ystep: ystep,
+      ox: (cw - (W + 0.5) * w) / 2,
+      oy: (ch - ((H - 1) * ystep + h)) / 2
+    };
+  }
+
+  /* 格心（像素）：奇数行右移半格 */
+  function center(L, x, y) {
+    return {
+      x: L.ox + (x + ((y & 1) ? 0.5 : 0) + 0.5) * L.w,
+      y: L.oy + y * L.ystep + L.s
+    };
+  }
+
+  function hexPath(ctx, cx, cy, s) {
+    ctx.beginPath();
+    for (var i = 0; i < 6; i++) {
+      var a = Math.PI / 180 * (60 * i + 30);          // 尖顶：顶点在上下
+      var px = cx + s * Math.cos(a), py = cy + s * Math.sin(a);
+      if (i === 0) { ctx.moveTo(px, py); } else { ctx.lineTo(px, py); }
+    }
+    ctx.closePath();
+  }
+
+  /* 像素 → 格：先化为轴向坐标，再作立方取整，回推偏置坐标 */
+  function tileAtPixel(L, px, py) {
+    var X = px - (L.ox + L.w / 2);
+    var Y = py - (L.oy + L.s);
+    var q = (SQ3 / 3 * X - Y / 3) / L.s;
+    var r = (2 / 3 * Y) / L.s;
+    var fx = q, fz = r, fy = -q - r;
+    var rx = Math.round(fx), ry = Math.round(fy), rz = Math.round(fz);
+    var dx = Math.abs(rx - fx), dy = Math.abs(ry - fy), dz = Math.abs(rz - fz);
+    if (dx > dy && dx > dz) { rx = -ry - rz; }
+    else if (dy > dz) { ry = -rx - rz; }
+    else { rz = -rx - ry; }
+    var col = rx + ((rz - (rz & 1)) >> 1);
+    var row = rz;
+    if (row < 0 || row >= root.MAP.H || col < 0 || col >= root.MAP.W) { return null; }
+    return { x: col, y: row };
+  }
+
+  /* —— 地形纹样 —— */
+  function drawMountains(ctx, cx, cy, s) {
     ctx.save();
     ctx.strokeStyle = 'rgba(60,52,42,.55)';
     ctx.fillStyle = 'rgba(96,86,70,.20)';
     ctx.lineWidth = 1.2;
     var n = 3;
     for (var i = 0; i < n; i++) {
-      var bx = px + 7 + i * (size - 14) / n;
-      var by = py + size - 9;
-      var h = size * 0.42;
+      var bx = cx - s * 0.78 + i * (s * 1.56) / n;
+      var by = cy + s * 0.42;
+      var h = s * 0.78;
       ctx.beginPath();
       ctx.moveTo(bx, by);
-      ctx.lineTo(bx + size * 0.14, by - h);
-      ctx.lineTo(bx + size * 0.28, by);
+      ctx.lineTo(bx + s * 0.26, by - h);
+      ctx.lineTo(bx + s * 0.52, by);
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
@@ -38,114 +95,145 @@
     ctx.restore();
   }
 
-  function drawForest(ctx, px, py, size) {
+  function drawForest(ctx, cx, cy, s) {
     ctx.save();
     ctx.fillStyle = 'rgba(74,86,58,.45)';
     for (var i = 0; i < 5; i++) {
-      var x = px + 8 + (i % 3) * 10;
-      var y = py + 10 + Math.floor(i / 3) * 12;
+      var x = cx - s * 0.62 + (i % 3) * s * 0.5;
+      var y = cy - s * 0.5 + Math.floor(i / 3) * s * 0.62;
       ctx.beginPath();
-      ctx.moveTo(x, y + 8);
-      ctx.lineTo(x + 4, y);
-      ctx.lineTo(x + 8, y + 8);
+      ctx.moveTo(x, y + s * 0.42);
+      ctx.lineTo(x + s * 0.2, y);
+      ctx.lineTo(x + s * 0.4, y + s * 0.42);
       ctx.closePath();
       ctx.fill();
     }
     ctx.restore();
   }
 
-  function drawWaves(ctx, px, py, size) {
+  function drawWaves(ctx, cx, cy, s) {
     ctx.save();
     ctx.strokeStyle = 'rgba(58,86,96,.30)';
     ctx.lineWidth = 1;
-    for (var i = 0; i < 2; i++) {
-      var y = py + 13 + i * 12;
+    for (var i = -1; i <= 1; i++) {
+      var y = cy + i * s * 0.44;
       ctx.beginPath();
-      ctx.moveTo(px + 6, y);
-      ctx.bezierCurveTo(px + 13, y - 4, px + 20, y + 4, px + 28, y);
+      ctx.moveTo(cx - s * 0.6, y);
+      ctx.bezierCurveTo(cx - s * 0.25, y - s * 0.2, cx + s * 0.1, y + s * 0.2, cx + s * 0.6, y);
       ctx.stroke();
     }
     ctx.restore();
   }
 
-  function drawDesert(ctx, px, py, size) {
+  function drawDesert(ctx, cx, cy, s) {
     ctx.save();
     ctx.strokeStyle = 'rgba(150,126,80,.35)';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(px + 7, py + size - 12);
-    ctx.bezierCurveTo(px + 16, py + size - 22, px + 24, py + size - 4, px + size - 6, py + size - 16);
+    ctx.moveTo(cx - s * 0.62, cy + s * 0.3);
+    ctx.bezierCurveTo(cx - s * 0.2, cy - s * 0.35, cx + s * 0.2, cy + s * 0.5, cx + s * 0.62, cy - s * 0.18);
     ctx.stroke();
     ctx.restore();
   }
 
-  function drawCity(ctx, c, st, selected) {
+  function drawMarsh(ctx, cx, cy, s) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(96,104,78,.28)';
+    ctx.fillRect(cx - s * 0.42, cy - s * 0.18, s * 0.3, s * 0.14);
+    ctx.fillRect(cx + s * 0.02, cy + s * 0.16, s * 0.34, s * 0.14);
+    ctx.strokeStyle = 'rgba(96,104,78,.35)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(cx - s * 0.3, cy + s * 0.36); ctx.lineTo(cx + s * 0.3, cy + s * 0.36); ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawFord(ctx, cx, cy, s) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(70,80,74,.5)';
+    ctx.lineWidth = 1.4;
+    for (var i = -1; i <= 1; i++) {
+      var x = cx + i * s * 0.34;
+      ctx.beginPath();
+      ctx.moveTo(x, cy - s * 0.5);
+      ctx.lineTo(x, cy + s * 0.5);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  /* —— 城池 —— */
+  function drawCity(ctx, L, c, st, selected) {
     var s = st.cities[c.id];
     var fac = root.MAP.FACTIONS[s.owner] || root.MAP.FACTIONS.neutral;
-    var px = c.x * TS, py = c.y * TS;
+    var p = center(L, c.x, c.y);
+    var cx = p.x, cy = p.y;
     var img = artGet('city', CITY_KIND[c.kind]);
     ctx.save();
     if (img) {
-      var side = TS * 0.86;
+      var side = L.w * 0.84;
+      ctx.save();
+      hexPath(ctx, cx, cy, L.s * 0.9);
+      ctx.clip();
       ctx.globalAlpha = 0.96;
-      ctx.drawImage(img, px + (TS - side) / 2, py + (TS - side) / 2 - 2, side, side);
-      ctx.globalAlpha = 1;
+      ctx.drawImage(img, cx - side / 2, cy - side / 2 - 2, side, side);
+      ctx.restore();
       // 势力小旗，标示归属
       ctx.fillStyle = fac.color;
-      ctx.fillRect(px + 2, py + 2, 7, 7);
+      ctx.fillRect(cx - L.w * 0.46, cy - L.w * 0.44, 7, 7);
       ctx.strokeStyle = 'rgba(30,24,18,.55)';
       ctx.lineWidth = 1;
-      ctx.strokeRect(px + 2.5, py + 2.5, 6, 6);
+      ctx.strokeRect(cx - L.w * 0.46 + 0.5, cy - L.w * 0.44 + 0.5, 6, 6);
     } else {
       // 城基
       ctx.fillStyle = fac.color;
       ctx.globalAlpha = 0.92;
+      var w = L.w * 0.62, h = Math.min(L.h * 0.46, L.s * 1.2);
+      var bx = cx - w / 2, by = cy - h / 2 - 1;
       ctx.beginPath();
-      var w = TS * 0.62, h = TS * 0.5;
-      var cx = px + (TS - w) / 2, cy = py + (TS - h) / 2 - 1;
-      ctx.rect(cx, cy, w, h);
+      ctx.rect(bx, by, w, h);
       ctx.fill();
       // 垛口
       ctx.globalAlpha = 0.55;
       ctx.fillStyle = '#fdf6e8';
       for (var i = 0; i < 4; i++) {
-        ctx.fillRect(cx + 2 + i * (w - 4) / 4, cy - 2.5, (w - 6) / 6, 3);
+        ctx.fillRect(bx + 2 + i * (w - 4) / 4, by - 2.5, (w - 6) / 6, 3);
       }
       ctx.globalAlpha = 1;
       ctx.strokeStyle = 'rgba(30,24,18,.65)';
       ctx.lineWidth = 1;
-      ctx.strokeRect(cx, cy, w, h);
+      ctx.strokeRect(bx, by, w, h);
     }
     // 城名
     ctx.font = '11px Georgia, "Songti SC", serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     var label = c.name;
-    var ly = py + TS - 5;
+    var ly = cy + L.s * 0.72;
     ctx.lineWidth = 3;
     ctx.strokeStyle = 'rgba(246,240,226,.92)';
-    ctx.strokeText(label, px + TS / 2, ly);
+    ctx.strokeText(label, cx, ly);
     ctx.fillStyle = 'rgba(40,33,26,.95)';
-    ctx.fillText(label, px + TS / 2, ly);
+    ctx.fillText(label, cx, ly);
     if (s.garrison > 0) {
       ctx.fillStyle = 'rgba(40,33,26,.62)';
       ctx.font = '9px ui-monospace, monospace';
-      ctx.fillText('守' + Math.round(s.garrison), px + TS / 2, py + 5);
+      ctx.fillText('守' + Math.round(s.garrison), cx, cy - L.s * 0.6);
     }
     ctx.restore();
   }
 
-  function drawUnit(ctx, u, st, isSelected) {
-    var px = u.x * TS + TS / 2, py = u.y * TS + TS / 2;
+  /* —— 部曲 —— */
+  function drawUnit(ctx, L, u, st, isSelected) {
+    var p = center(L, u.x, u.y);
+    var px = p.x, py = p.y;
     var fac = root.MAP.FACTIONS[u.faction] || root.MAP.FACTIONS.neutral;
     var gen = u.generalRef;
-    var r = TS * 0.34;
+    var r = L.s * 0.62;
     var portrait = gen ? artGet('portrait', gen.id) : null;
     var bunting = artGet('unit', u.type);
     ctx.save();
 
     if (portrait) {
-      // 头像圆徽
       ctx.save();
       ctx.beginPath();
       ctx.arc(px, py - 3, r, 0, Math.PI * 2);
@@ -160,7 +248,7 @@
       ctx.strokeStyle = isSelected ? '#f7e6b8' : fac.color;
       ctx.stroke();
     } else if (bunting) {
-      var side = TS * 0.78;
+      var side = L.s * 1.5;
       ctx.drawImage(bunting, px - side / 2, py - side / 2 - 2, side, side);
       if (isSelected) {
         ctx.strokeStyle = '#f7e6b8';
@@ -201,8 +289,8 @@
     }
 
     // 兵力条
-    var bw = TS * 0.62, bh = 3;
-    var bx = px - bw / 2, by = py + TS * 0.30;
+    var bw = L.w * 0.6, bh = 3;
+    var bx = px - bw / 2, by = py + L.s * 0.62;
     ctx.fillStyle = 'rgba(40,33,26,.35)';
     ctx.fillRect(bx, by, bw, bh);
     ctx.fillStyle = u.hp / u.maxHp > 0.4 ? '#5d7a4e' : '#a8322a';
@@ -213,7 +301,7 @@
 
   /* 州域水印：按各州城池重心，淡书州名 */
   var ZHOU_POS = null;
-  function zhouLabels() {
+  function zhouLabels(L) {
     if (ZHOU_POS) { return ZHOU_POS; }
     var acc = {};
     root.MAP.CITIES.forEach(function (c) {
@@ -221,102 +309,124 @@
       a.x += c.x; a.y += c.y; a.n += 1;
     });
     ZHOU_POS = Object.keys(acc).map(function (k) {
-      return { name: k, x: (acc[k].x / acc[k].n + 0.5) * TS, y: (acc[k].y / acc[k].n + 0.5) * TS };
+      var gx = acc[k].x / acc[k].n, gy = acc[k].y / acc[k].n;
+      return { name: k, gx: gx, gy: gy };
     });
     return ZHOU_POS;
   }
 
-  function drawZhou(ctx) {
+  function drawZhou(ctx, L) {
     ctx.save();
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.font = '34px Georgia, "Songti SC", serif';
+    ctx.font = '32px Georgia, "Songti SC", serif';
     ctx.fillStyle = 'rgba(74,60,44,.14)';
     zhouLabels().forEach(function (z) {
-      ctx.fillText(z.name, z.x, z.y);
+      var p = center(L, z.gx, z.gy);
+      ctx.fillText(z.name, p.x, p.y);
     });
     ctx.restore();
   }
 
   function draw(ctx, st, view) {
     view = view || {};
-    var W = root.MAP.W, H = root.MAP.H;
+    var L = layout(ctx);
     ctx.save();
-    ctx.clearRect(0, 0, W * TS, H * TS);
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-    for (var y = 0; y < H; y++) {
-      for (var x = 0; x < W; x++) {
+    for (var y = 0; y < root.MAP.H; y++) {
+      for (var x = 0; x < root.MAP.W; x++) {
         var t = st.map[y][x];
-        var px = x * TS, py = y * TS;
+        var p = center(L, x, y);
         var timg = artGet('terrain', t.terrain);
+        hexPath(ctx, p.x, p.y, L.s + 0.6);
         ctx.fillStyle = terrainFill(t.terrain);
-        ctx.fillRect(px, py, TS, TS);
+        ctx.fill();
         if (timg) {
-          ctx.drawImage(timg, px, py, TS, TS);
-        } else if (t.terrain === 'mount') { drawMountains(ctx, px, py, TS); }
-        else if (t.terrain === 'forest') { drawForest(ctx, px, py, TS); }
-        else if (t.terrain === 'water') { drawWaves(ctx, px, py, TS); }
-        else if (t.terrain === 'desert') { drawDesert(ctx, px, py, TS); }
-        else if (t.terrain === 'marsh') {
-          ctx.fillStyle = 'rgba(96,104,78,.25)';
-          ctx.fillRect(px + 10, py + 14, 6, 3);
-          ctx.fillRect(px + 22, py + 22, 7, 3);
-        } else if (t.terrain === 'ford') {
-          ctx.strokeStyle = 'rgba(70,80,74,.45)';
-          ctx.lineWidth = 1;
-          ctx.beginPath(); ctx.moveTo(px + 6, py + 20); ctx.lineTo(px + TS - 6, py + 20); ctx.stroke();
-        }
-        ctx.strokeStyle = 'rgba(90,78,60,.14)';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(px + .5, py + .5, TS - 1, TS - 1);
+          ctx.save();
+          hexPath(ctx, p.x, p.y, L.s + 0.6);
+          ctx.clip();
+          ctx.drawImage(timg, p.x - L.w / 2, p.y - L.s, L.w, L.h);
+          ctx.restore();
+        } else if (t.terrain === 'mount') { drawMountains(ctx, p.x, p.y, L.s); }
+        else if (t.terrain === 'forest') { drawForest(ctx, p.x, p.y, L.s); }
+        else if (t.terrain === 'water') { drawWaves(ctx, p.x, p.y, L.s); }
+        else if (t.terrain === 'desert') { drawDesert(ctx, p.x, p.y, L.s); }
+        else if (t.terrain === 'marsh') { drawMarsh(ctx, p.x, p.y, L.s); }
+        else if (t.terrain === 'ford') { drawFord(ctx, p.x, p.y, L.s); }
       }
     }
 
-    drawZhou(ctx);
+    // 格线（六边）
+    ctx.strokeStyle = 'rgba(90,78,60,.16)';
+    ctx.lineWidth = 1;
+    for (var yy = 0; yy < root.MAP.H; yy++) {
+      for (var xx = 0; xx < root.MAP.W; xx++) {
+        var pp = center(L, xx, yy);
+        hexPath(ctx, pp.x, pp.y, L.s + 0.4);
+        ctx.stroke();
+      }
+    }
+
+    drawZhou(ctx, L);
 
     // 行军区
-    (view.reachable || []).forEach(function (p) {
+    (view.reachable || []).forEach(function (q) {
+      var p = center(L, q.x, q.y);
+      hexPath(ctx, p.x, p.y, L.s * 0.9);
       ctx.fillStyle = 'rgba(84,117,103,.28)';
-      ctx.fillRect(p.x * TS + 2, p.y * TS + 2, TS - 4, TS - 4);
-      ctx.strokeStyle = 'rgba(84,117,103,.55)';
-      ctx.strokeRect(p.x * TS + 2.5, p.y * TS + 2.5, TS - 5, TS - 5);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(84,117,103,.6)';
+      ctx.lineWidth = 1.6;
+      ctx.stroke();
     });
     // 可攻之敌
     (view.targets || []).forEach(function (u) {
+      var p = center(L, u.x, u.y);
+      hexPath(ctx, p.x, p.y, L.s + 1);
       ctx.strokeStyle = 'rgba(168,50,42,.9)';
       ctx.lineWidth = 3;
-      ctx.strokeRect(u.x * TS + 2.5, u.y * TS + 2.5, TS - 5, TS - 5);
+      ctx.stroke();
     });
     (view.cityTargets || []).forEach(function (c) {
+      var p = center(L, c.x, c.y);
+      hexPath(ctx, p.x, p.y, L.s + 1);
       ctx.strokeStyle = 'rgba(168,50,42,.9)';
       ctx.lineWidth = 3;
       ctx.setLineDash([6, 4]);
-      ctx.strokeRect(c.x * TS + 2.5, c.y * TS + 2.5, TS - 5, TS - 5);
+      ctx.stroke();
       ctx.setLineDash([]);
     });
 
     // 城
-    root.MAP.CITIES.forEach(function (c) { drawCity(ctx, c, st, view.selectedCity === c.id); });
+    root.MAP.CITIES.forEach(function (c) { drawCity(ctx, L, c, st, view.selectedCity === c.id); });
     // 军
     st.units.forEach(function (u) {
       if (u.hp <= 0) { return; }
-      drawUnit(ctx, u, st, view.selected && view.selected.id === u.id);
+      drawUnit(ctx, L, u, st, view.selected && view.selected.id === u.id);
     });
     ctx.restore();
   }
 
-  /* 画布以 CSS 缩放显示（内部 1200×800，屏上可能只有 700 余像素），
-     故须先把鼠标坐标按 canvas.width / 屏幕宽 换算回内部坐标，再除以格宽。 */
+  /* 画布以 CSS 缩放显示（内部 1200 余像素，屏上可能只有 700 余像素），
+     故须先把鼠标坐标按 canvas.width / 屏幕宽 换算回内部坐标，再作六边取整。 */
   function hit(e, canvas) {
     var r = canvas.getBoundingClientRect();
     if (!r.width || !r.height) { return null; }
     var kx = canvas.width / r.width;
     var ky = canvas.height / r.height;
-    var x = Math.floor(((e.clientX - r.left) * kx) / TS);
-    var y = Math.floor(((e.clientY - r.top) * ky) / TS);
-    if (x < 0 || y < 0 || x >= root.MAP.W || y >= root.MAP.H) { return null; }
-    return { x: x, y: y };
+    var px = (e.clientX - r.left) * kx;
+    var py = (e.clientY - r.top) * ky;
+    return tileAtPixel(layout({ canvas: canvas }), px, py);
   }
 
-  root.Render = { draw: draw, hit: hit, TS: TS };
+  root.Render = {
+    draw: draw,
+    hit: hit,
+    layout: layout,
+    center: center,
+    hexPath: hexPath,
+    tileAtPixel: tileAtPixel,
+    TS: 40
+  };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -8,6 +8,7 @@ const vm = require('vm');
 
 const ROOT = path.resolve(__dirname, '..');
 const FILES = [
+  'src/data/version.js',
   'src/data/map.js', 'src/data/factions.js',
   'src/data/generals_1.js', 'src/data/generals_2.js', 'src/data/generals_3.js', 'src/data/generals_4.js',
   'src/data/lore.js',
@@ -39,6 +40,28 @@ for (const f of FILES) {
 
 const MAP = sandbox.MAP, Rules = sandbox.Rules, Eng = sandbox.Engine, Story = sandbox.Story;
 if (!MAP || !Rules || !Eng || !Story) { console.error(errs.join('\n')); process.exit(1); }
+
+/* —— 版本号：VERSION 文件 / src/data/version.js / CHANGELOG.md 首条，三者须一致 —— */
+const VER_RE = /^\d+\.\d+\.\d+\.\d+$/;
+const fileVer = (() => {
+  const p = path.join(ROOT, 'VERSION');
+  if (!fs.existsSync(p)) { errs.push('缺 VERSION 文件'); return null; }
+  return fs.readFileSync(p, 'utf8').trim();
+})();
+const appVer = sandbox.APP_VERSION && sandbox.APP_VERSION.version;
+if (!fileVer || !VER_RE.test(fileVer)) { errs.push('VERSION 文件非四段版本号：' + fileVer); }
+if (!appVer || !VER_RE.test(appVer)) { errs.push('version.js 的 version 非四段版本号：' + appVer); }
+if (fileVer && appVer && fileVer !== appVer) { errs.push('VERSION（' + fileVer + '）与 version.js（' + appVer + '）不一致'); }
+const chlog = (() => {
+  const p = path.join(ROOT, 'CHANGELOG.md');
+  if (!fs.existsSync(p)) { errs.push('缺 CHANGELOG.md'); return null; }
+  const m = fs.readFileSync(p, 'utf8').match(/^##\s*\[?(\d+\.\d+\.\d+\.\d+)\]?/m);
+  if (!m) { errs.push('CHANGELOG.md 未找到版本条目（## x.y.z.w）'); return null; }
+  return m[1];
+})();
+if (chlog && fileVer && chlog !== fileVer) { errs.push('CHANGELOG.md 首条（' + chlog + '）与 VERSION（' + fileVer + '）不一致'); }
+if (appVer && sandbox.APP_VERSION && !sandbox.APP_VERSION.name) { errs.push('version.js 缺 name'); }
+if (fileVer && chlog === fileVer && appVer === fileVer) { ok.push('版本 ' + fileVer + '（' + (sandbox.APP_VERSION.name || '') + '，' + (sandbox.APP_VERSION.date || '') + '）三处一致'); }
 
 /* —— 舆图 —— */
 ok.push('舆图 ' + MAP.W + '×' + MAP.H + '，城池 ' + MAP.CITIES.length + ' 座，势力 ' + Object.keys(MAP.FACTIONS).length + ' 家');
@@ -234,7 +257,7 @@ lordKeys.forEach(k => {
         let best = null, bs = 1e9;
         for (const p of opts) {
           let d = 1e9;
-          for (const c of enemy) d = Math.min(d, Math.abs(p.x - c.x) + Math.abs(p.y - c.y));
+          for (const c of enemy) d = Math.min(d, MAP.dist(p.x, p.y, c.x, c.y));
           if (d < bs) { bs = d; best = p; }
         }
         if (best) Eng.moveTo(st, u.id, best.x, best.y);

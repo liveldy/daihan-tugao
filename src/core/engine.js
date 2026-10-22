@@ -248,13 +248,14 @@
     return u;
   }
 
+  /* 城下择一地布阵：自内而外，逐环寻空旷之地（六边距离） */
   function freeTilesNear(st, x, y) {
     var out = [];
     for (var r = 1; r <= 3; r++) {
       for (var dy = -r; dy <= r; dy++) {
-        for (var dx = -r; dx <= r; dx++) {
-          if (Math.abs(dx) + Math.abs(dy) !== r) { continue; }
+        for (var dx = -r - 1; dx <= r + 1; dx++) {
           var nx = x + dx, ny = y + dy;
+          if (MAP.dist(x, y, nx, ny) !== r) { continue; }
           var t = Rules.terrainOf(st, nx, ny);
           if (!t) { continue; }
           if (t.terrain === 'water') { continue; }
@@ -361,7 +362,7 @@
     // 反击：近战且守方存活
     var sA = Rules.statsOf(a, a.generalRef);
     var sD = Rules.statsOf(d, d.generalRef);
-    if (d.hp > 0 && sD.range >= Math.abs(a.x - d.x) + Math.abs(a.y - d.y) && sD.range === 1) {
+    if (d.hp > 0 && sD.range >= MAP.dist(a.x, a.y, d.x, d.y) && sD.range === 1) {
       var c = Rules.damage(st, d, a);
       var cd = Math.round(c.dmg * 0.7);
       a.hp = Math.max(0, a.hp - cd);
@@ -428,7 +429,7 @@
     if (!u || !c) { return fail('无此部曲'); }
     if (u.acted) { return fail('此军本回合已行动'); }
     if (c.owner === u.faction) { return fail('此城已属我方'); }
-    var dist = Math.abs(u.x - c.x) + Math.abs(u.y - c.y);
+    var dist = MAP.dist(u.x, u.y, c.x, c.y);
     var s = Rules.statsOf(u, u.generalRef);
     if (dist > s.range) { return fail('未及城下'); }
     var power = s.atk * (Rules.UNITS[u.type].tags.indexOf('siege') >= 0 ? 5.0 : 2.2);

@@ -111,7 +111,7 @@ for (let t = 0; t < turns && st.phase !== 'over'; t++) {
     let best = null, bs = 1e9;
     for (const p of opts) {
       let d = 1e9;
-      for (const c of enemy) d = Math.min(d, Math.abs(p.x - c.x) + Math.abs(p.y - c.y));
+      for (const c of enemy) d = Math.min(d, sandbox.MAP.dist(p.x, p.y, c.x, c.y));
       if (d < bs) { bs = d; best = p; }
     }
     if (best) Eng.moveTo(st, u.id, best.x, best.y);

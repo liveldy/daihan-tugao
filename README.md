@@ -1,6 +1,6 @@
 # 代汉涂高
 
-广义三国（184 黄巾起义 — 265 司马炎称帝）背景的回合制战棋策略游戏。
+自中平元年黄巾起义（184）至咸熙二年晋王受禅（265），八十一载的回合制战棋策略游戏。
 择一君主，招兵买马，依史而行，混一宇内。
 
 > 「代汉者当涂高」出自《后汉书·公孙述传》所载光武帝与公孙述书，是理解袁术僭号与曹魏代汉的一条线索，也是本作标题所本。
@@ -34,6 +34,7 @@ python -m http.server 8931 --bind 127.0.0.1
 
 - **择主**：六组十五家、二十五位君主。分组为「匡鼎炎汉 / 霸府挟令 / 乱世枭雄 / 边地雄踞 / 江东虎踞 / 苍天已死」，各有独立故事线与成败结局，且各带一条专属国策（如曹操「唯才是举」、刘协「天子诏书」、张角「太平道」）。
 - **回合**：一回合为一季，四时成岁。**点击舆图上本方部队即可调遣**（侧栏「军情」亦可），绿色格可移动，红框为可攻击的敌军与城池。右键或 Esc 取消选择。
+- **舆图**：三十格宽、二十格高，凡六百格，皆作**正六边形**（尖顶、奇数行右移半格），每格有六邻。行军、射程、光环与反击皆按**六边距离**计，故斜向亦为一格。地形十四种之外，江海有津渡可涉，川泽有沼泽难行。
 - **敌情**：点击任意敌军或城池，舆图左上浮出「敌情」牌：主将姓名、字号、五维、技能、兵种、兵力、士气、所处地形，以及与我方选中之军交锋的胜负预判。
 - **行军与交战**：兵分十四种，各有相克（骑克弓弩、枪戟克骑、弓弩克枪戟、器械克城）。地形有攻守修正，山地阻器械，江海唯水军可渡。
 - **攻城**：城池有守备，须先以野战军削弱守备，方得出兵入城。器械（云梯、冲车）攻城效率五倍于常兵。
@@ -65,12 +66,15 @@ assets/img/cities/<kind>.png        城池图形（duzhou zhouzhi zhongzhen xian
 ## 目录
 
 ```
+VERSION                 版本号（四段，单行）；与 src/data/version.js、CHANGELOG.md 三者须一致
+CHANGELOG.md            改易之目：每版一条，最新者在上
 index.html              主页面：承天受命（择主开局）／演武教战（教学）／兵书志略（wiki）
 wiki.html               兵书志略（攻略）独立页
 dev.html                匠作志略（制作与实现）独立页
 assets/style.css        版式（素纸、墨线、朱印）
 assets/img/             美术资源：portraits units terrain banners cities，清单见其 MANIFEST.md
-src/data/map.js         舆图：30×20 格地形、86 座城池、25 家势力（含无主）、8 个剧本与其归属
+src/data/version.js     版本数据（号、期、名、提要）
+src/data/map.js         舆图：30×20 格正六边形地形、96 座城池、25 家势力（含无主）、8 个剧本与其归属
 src/data/factions.js     六组十五家二十五君主、各人国策
 src/data/generals_*.js  武将文臣（分卷）
 src/data/stories_*.js   二十五条故事线（章回、台词、内心、史注、抉择、成败结局）
@@ -95,12 +99,20 @@ tools/art_manifest.js   生成 assets/img/MANIFEST.md（应备图像清单）
 ## 自检
 
 ```
-node tools/validate.js          # 全量数据与引擎校验（含 wiki、故事线、全 25 主推演 12 回合）
+node tools/validate.js          # 全量数据与引擎校验（含版本号、wiki、故事线、全 25 主推演 12 回合）
 node tools/sim.js caocao 40     # 以曹操自动推演 40 回合
 SIM_AI_PLAYER=1 node tools/sim.js zhangjiao 260   # 以张角自中平元年推演 260 回合
 node tools/art_manifest.js      # 重生成美术资源清单
 sh tools/deploy_github.sh       # 推到 GitHub 并开启 Pages（需 GITHUB_TOKEN）
 ```
+
+## 版本
+
+版本号四段——**主 . 次 . 修订 . 构建**：主号表格局之变，次号表功能之增，修订号表修缺与调平，构建号每提交必增。凡有改动必升版本，并记于 `CHANGELOG.md`。
+
+同一版本号须同时见于三处，缺一即校验不通过：`VERSION`、`src/data/version.js` 的 `version`、`CHANGELOG.md` 最新一条标题。游戏主页面底栏与兵书／匠作二志顶栏皆显示此号。
+
+当前版本见 [VERSION](VERSION)；历次改易见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 部署
 

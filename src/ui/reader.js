@@ -32,6 +32,12 @@
     var count = document.getElementById('wikiCount');
     if (count) { count.textContent = '凡 ' + W.sections.length + ' 门 · ' + total + ' 条'; }
 
+    var ver = document.getElementById('wikiVer');
+    if (ver && root.APP_VERSION) {
+      ver.textContent = 'v' + root.APP_VERSION.version;
+      ver.title = root.APP_VERSION.name + '（' + root.APP_VERSION.date + '）';
+    }
+
     nav.appendChild(el('h2', null, title));
     W.sections.forEach(function (s) {
       var a = el('a', null, s.name);
